@@ -140,8 +140,8 @@ Email delivery is SMTP-ready through environment variables. Without SMTP credent
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/sashik117/GymEngine-.git
-cd GymEngine-
+git clone https://github.com/sashik117/GymEngine.git
+cd GymEngine
 ```
 
 ### 2. Run the API
