@@ -1,10 +1,11 @@
 # GymEngine
 
-![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
-![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
-![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-Mobile-111827?style=for-the-badge&logo=flutter)
+![Dart](https://img.shields.io/badge/Dart-App-111827?style=for-the-badge&logo=dart)
+![NestJS](https://img.shields.io/badge/NestJS-API-111827?style=for-the-badge&logo=nestjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-Backend-111827?style=for-the-badge&logo=typescript)
+![SQLite](https://img.shields.io/badge/SQLite-Local_DB-111827?style=for-the-badge&logo=sqlite)
+![Node.js](https://img.shields.io/badge/Node.js-Runtime-111827?style=for-the-badge&logo=nodedotjs)
 
 **GymEngine** is a fullstack, mobile-first strength training app built for fast workout logging, structured training plans, and clean progress analytics.
 
@@ -69,17 +70,17 @@ The app keeps the training experience focused while still preserving enough data
 
 ## 📸 Screenshots
 
-### Authentication
-
-![Authentication screen](screenshots/mobile-view.png)
-
 ### Home / Training Plan
 
-![Home screen](screenshots/home-page.png)
+![Home page](screenshots/home-page.png)
 
-### Analytics
+### Analytics Dashboard
 
-![Analytics screen](screenshots/dashboard.png)
+![Analytics dashboard](screenshots/dashboard.png)
+
+### Mobile Authentication
+
+![Mobile view](screenshots/mobile-view.png)
 
 ---
 
