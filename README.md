@@ -70,17 +70,37 @@ The app keeps the training experience focused while still preserving enough data
 
 ## 📸 Screenshots
 
+### Mobile Authentication
+
+![Mobile authentication](screenshots/mobile-view.png)
+
 ### Home / Training Plan
 
 ![Home page](screenshots/home-page.png)
+
+### Active Workout Session
+
+![Active session](screenshots/active-session.png)
+
+### Set Logging + Rest Timer
+
+![Set logging and rest timer](screenshots/set-logging.png)
+
+### Edit Day + Add Exercises
+
+![Edit day and add exercises](screenshots/edit-day.png)
 
 ### Analytics Dashboard
 
 ![Analytics dashboard](screenshots/dashboard.png)
 
-### Mobile Authentication
+### Exercise Stats Details
 
-![Mobile view](screenshots/mobile-view.png)
+![Exercise stats details](screenshots/analytics-details.png)
+
+### Profile Settings
+
+![Profile settings](screenshots/profile.png)
 
 ---
 
