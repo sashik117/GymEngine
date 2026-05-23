@@ -1,0 +1,36 @@
+# Workspace
+.DS_Store
+Thumbs.db
+.android-sdk/
+.cache/
+
+# Local Flutter SDK checkout. Keep it on disk, but out of the product repo.
+src/flutter/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+**/.metadata
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node
+**/node_modules/
+**/dist/
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local app/server state
+**/.data/

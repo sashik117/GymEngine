@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: gymengine-postgres
+    environment:
+      POSTGRES_DB: gymengine
+      POSTGRES_USER: gymengine
+      POSTGRES_PASSWORD: gymengine_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - gymengine-postgres:/var/lib/postgresql/data
+
+volumes:
+  gymengine-postgres:

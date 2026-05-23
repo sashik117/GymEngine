@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="root" path="app_flutter/gym_engine.sqlite" />
+        <include domain="root" path="app_flutter/gym_engine.sqlite-wal" />
+        <include domain="root" path="app_flutter/gym_engine.sqlite-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="root" path="app_flutter/gym_engine.sqlite" />
+        <include domain="root" path="app_flutter/gym_engine.sqlite-wal" />
+        <include domain="root" path="app_flutter/gym_engine.sqlite-shm" />
+    </device-transfer>
+</data-extraction-rules>

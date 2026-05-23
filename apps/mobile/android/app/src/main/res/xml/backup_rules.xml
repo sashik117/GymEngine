@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="root" path="app_flutter/gym_engine.sqlite" />
+    <include domain="root" path="app_flutter/gym_engine.sqlite-wal" />
+    <include domain="root" path="app_flutter/gym_engine.sqlite-shm" />
+</full-backup-content>
