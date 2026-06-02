@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/localization/gym_labels.dart';
 import '../../core/theme/app_theme.dart';
 import '../bloc/analytics_cubit.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/locale_cubit.dart';
+import '../bloc/theme_cubit.dart';
 import 'core_screen.dart';
 import 'engine_screen.dart';
+import 'exercise_search_screen.dart';
 import 'profile_screen.dart';
 
 class AppShellScreen extends StatefulWidget {
@@ -18,6 +21,8 @@ class AppShellScreen extends StatefulWidget {
 
 class _AppShellScreenState extends State<AppShellScreen> {
   var _currentIndex = 0;
+  int? _searchTargetDayNumber;
+  var _searchTargetToken = 0;
 
   void _selectDestination(int index) {
     setState(() {
@@ -26,19 +31,36 @@ class _AppShellScreenState extends State<AppShellScreen> {
 
     if (index == 0) {
       context.read<DashboardCubit>().load();
-    } else if (index == 1) {
+    } else if (index == 2) {
       context.read<AnalyticsCubit>().load();
     }
   }
 
+  void _openSearchForDay(int dayNumber) {
+    setState(() {
+      _searchTargetDayNumber = dayNumber;
+      _searchTargetToken += 1;
+      _currentIndex = 1;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final themeMode = context.watch<ThemeCubit>().state;
     final labels = context.watch<LocaleCubit>().labels;
 
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: [CoreScreen(), EngineScreen(), ProfileScreen()],
+        children: [
+          CoreScreen(onOpenSearch: _openSearchForDay),
+          ExerciseSearchScreen(
+            targetDayNumber: _searchTargetDayNumber,
+            targetToken: _searchTargetToken,
+          ),
+          EngineScreen(),
+          ProfileScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
@@ -61,6 +83,7 @@ class _AppShellScreenState extends State<AppShellScreen> {
           }),
         ),
         child: NavigationBar(
+          key: ValueKey(themeMode),
           selectedIndex: _currentIndex,
           onDestinationSelected: _selectDestination,
           destinations: [
@@ -68,6 +91,11 @@ class _AppShellScreenState extends State<AppShellScreen> {
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard),
               label: labels.t('base'),
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search),
+              selectedIcon: Icon(Icons.manage_search),
+              label: labels.language == GymLanguage.uk ? 'ПОШУК' : 'SEARCH',
             ),
             NavigationDestination(
               icon: Icon(Icons.bar_chart_outlined),

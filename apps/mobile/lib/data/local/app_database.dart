@@ -22,6 +22,12 @@ class Exercises extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get primaryMuscle => text()();
+  TextColumn get bodyPart => text().withDefault(const Constant(''))();
+  TextColumn get equipment => text().withDefault(const Constant(''))();
+  TextColumn get exerciseType => text().withDefault(const Constant(''))();
+  TextColumn get imageUrl => text().withDefault(const Constant(''))();
+  TextColumn get videoUrl => text().withDefault(const Constant(''))();
+  TextColumn get sourceUrl => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get syncStatus => text().withDefault(const Constant('seeded'))();
 
@@ -87,6 +93,18 @@ class UserProfiles extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class ProgressPhotoEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get imageDataUrl => text()();
+  TextColumn get note => text().withDefault(const Constant(''))();
+  DateTimeColumn get capturedAt => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     WorkoutSessions,
@@ -95,6 +113,7 @@ class UserProfiles extends Table {
     PlannedWorkoutDays,
     PlannedDayExercises,
     UserProfiles,
+    ProgressPhotoEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -103,7 +122,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -177,6 +196,17 @@ class AppDatabase extends _$AppDatabase {
             plannedDayExercises,
             plannedDayExercises.comment,
           );
+        }
+        if (from < 12) {
+          await migrator.addColumn(exercises, exercises.bodyPart);
+          await migrator.addColumn(exercises, exercises.equipment);
+          await migrator.addColumn(exercises, exercises.exerciseType);
+          await migrator.addColumn(exercises, exercises.imageUrl);
+          await migrator.addColumn(exercises, exercises.videoUrl);
+          await migrator.addColumn(exercises, exercises.sourceUrl);
+        }
+        if (from < 13) {
+          await migrator.createTable(progressPhotoEntries);
         }
       },
     );

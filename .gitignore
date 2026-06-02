@@ -3,6 +3,9 @@
 Thumbs.db
 .android-sdk/
 .cache/
+.gradle/
+.tmp/
+release/
 
 # Local Flutter SDK checkout. Keep it on disk, but out of the product repo.
 src/flutter/

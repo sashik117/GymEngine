@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,10 @@ import 'package:gym_engine/data/repos/workout_session_repository.dart';
 import 'package:gym_engine/main.dart';
 
 void main() {
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
   testWidgets('starts with a compact login and switches to registration', (
     WidgetTester tester,
   ) async {
@@ -69,19 +74,29 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Жим лежачи').first);
     await tester.tap(find.text('Жим лежачи').first);
+    await tester.tap(find.text('ДОДАТИ ВПРАВУ').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Пошук вправи'),
+      'Підтягування',
+    );
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Підтягування').first);
-    await tester.tap(find.text('Підтягування').first);
+    final pullUpAddButton = find.byKey(const ValueKey('catalog-add-pull_up'));
+    await tester.ensureVisible(pullUpAddButton);
+    await tester.pumpAndSettle();
+    await tester.tap(pullUpAddButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('ЗБЕРЕГТИ ДЕНЬ'));
     await tester.pumpAndSettle();
 
     expect(find.text('Верх Тіла'), findsWidgets);
     expect(find.text('Жим лежачи'), findsWidgets);
-    expect(find.text('ПОЧАТИ ТРЕНУВАННЯ'), findsOneWidget);
+    expect(find.text('ПОЧАТИ'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('ПОЧАТИ ТРЕНУВАННЯ'));
+    await tester.ensureVisible(find.text('ПОЧАТИ'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('ПОЧАТИ ТРЕНУВАННЯ'));
+    await tester.tap(find.text('ПОЧАТИ'));
     await tester.pumpAndSettle();
 
     expect(find.text('ПІДЙОМ'), findsOneWidget);
@@ -92,6 +107,11 @@ void main() {
     expect(find.text('ЗАПИСАТИ ПІДХІД'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('log-set-button')));
+    await tester.drag(
+      find.byKey(const ValueKey('active-session-scroll')),
+      const Offset(0, -260),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('log-set-button')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -103,12 +123,17 @@ void main() {
     await tester.pump();
 
     expect(find.text('1.'), findsOneWidget);
-    expect(find.text('60 КГ x 10'), findsWidgets);
+    expect(find.textContaining('60 КГ x'), findsWidgets);
 
     await tester.ensureVisible(find.text('НАСТУПНА ВПРАВА'));
     await tester.tap(find.text('НАСТУПНА ВПРАВА'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('log-set-button')));
+    await tester.drag(
+      find.byKey(const ValueKey('active-session-scroll')),
+      const Offset(0, -260),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('log-set-button')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -131,16 +156,44 @@ void main() {
     expect(find.text('ПІДСУМОК'), findsNothing);
     expect(find.text('КАЛЕНДАР'), findsOneWidget);
 
-    await tester.tap(find.text('АНАЛІТИКА').last);
+    await tester.tap(find.text('ПРОГРЕС').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Аналітика'), findsOneWidget);
+    expect(find.text('Прогрес'), findsOneWidget);
     expect(find.text('ТРЕНУВАНЬ ЦЬОГО МІСЯЦЯ'), findsOneWidget);
+
+    for (var scroll = 0; scroll < 5; scroll += 1) {
+      if (find.text('КАЛЕНДАР ТРЕНУВАНЬ').evaluate().isNotEmpty) {
+        break;
+      }
+      await tester.drag(
+        find.byKey(const ValueKey('progress-scroll')),
+        const Offset(0, -420),
+      );
+      await tester.pumpAndSettle();
+    }
+
     expect(find.text('КАЛЕНДАР ТРЕНУВАНЬ'), findsOneWidget);
-    expect(find.textContaining('Травень 2026'), findsOneWidget);
+
+    expect(find.textContaining(_ukMonthTitle(DateTime.now())), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('progress-scroll')),
+      const Offset(0, -520),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('ДЕНЬ ТРЕНУВАННЯ'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView).last, const Offset(0, -900));
+    for (var scroll = 0; scroll < 5; scroll += 1) {
+      if (find.text('Вправи').evaluate().isNotEmpty) {
+        break;
+      }
+      await tester.drag(
+        find.byKey(const ValueKey('progress-scroll')),
+        const Offset(0, 520),
+      );
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Вправи').last);
     await tester.pumpAndSettle();
 
     expect(find.text('ПРОГРЕС ПО ВПРАВАХ'), findsOneWidget);
@@ -158,4 +211,23 @@ void main() {
     expect(find.text('Увійшла як'), findsNothing);
     expect(find.text('ТРЕНУВАЛЬНІ ДАНІ'), findsOneWidget);
   });
+}
+
+String _ukMonthTitle(DateTime date) {
+  const months = [
+    'Січень',
+    'Лютий',
+    'Березень',
+    'Квітень',
+    'Травень',
+    'Червень',
+    'Липень',
+    'Серпень',
+    'Вересень',
+    'Жовтень',
+    'Листопад',
+    'Грудень',
+  ];
+
+  return '${months[date.month - 1]} ${date.year}';
 }

@@ -471,6 +471,78 @@ class $ExercisesTable extends Exercises
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _bodyPartMeta = const VerificationMeta(
+    'bodyPart',
+  );
+  @override
+  late final GeneratedColumn<String> bodyPart = GeneratedColumn<String>(
+    'body_part',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _equipmentMeta = const VerificationMeta(
+    'equipment',
+  );
+  @override
+  late final GeneratedColumn<String> equipment = GeneratedColumn<String>(
+    'equipment',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _exerciseTypeMeta = const VerificationMeta(
+    'exerciseType',
+  );
+  @override
+  late final GeneratedColumn<String> exerciseType = GeneratedColumn<String>(
+    'exercise_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _imageUrlMeta = const VerificationMeta(
+    'imageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+    'image_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _videoUrlMeta = const VerificationMeta(
+    'videoUrl',
+  );
+  @override
+  late final GeneratedColumn<String> videoUrl = GeneratedColumn<String>(
+    'video_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _sourceUrlMeta = const VerificationMeta(
+    'sourceUrl',
+  );
+  @override
+  late final GeneratedColumn<String> sourceUrl = GeneratedColumn<String>(
+    'source_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -499,6 +571,12 @@ class $ExercisesTable extends Exercises
     id,
     name,
     primaryMuscle,
+    bodyPart,
+    equipment,
+    exerciseType,
+    imageUrl,
+    videoUrl,
+    sourceUrl,
     createdAt,
     syncStatus,
   ];
@@ -538,6 +616,45 @@ class $ExercisesTable extends Exercises
     } else if (isInserting) {
       context.missing(_primaryMuscleMeta);
     }
+    if (data.containsKey('body_part')) {
+      context.handle(
+        _bodyPartMeta,
+        bodyPart.isAcceptableOrUnknown(data['body_part']!, _bodyPartMeta),
+      );
+    }
+    if (data.containsKey('equipment')) {
+      context.handle(
+        _equipmentMeta,
+        equipment.isAcceptableOrUnknown(data['equipment']!, _equipmentMeta),
+      );
+    }
+    if (data.containsKey('exercise_type')) {
+      context.handle(
+        _exerciseTypeMeta,
+        exerciseType.isAcceptableOrUnknown(
+          data['exercise_type']!,
+          _exerciseTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('image_url')) {
+      context.handle(
+        _imageUrlMeta,
+        imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta),
+      );
+    }
+    if (data.containsKey('video_url')) {
+      context.handle(
+        _videoUrlMeta,
+        videoUrl.isAcceptableOrUnknown(data['video_url']!, _videoUrlMeta),
+      );
+    }
+    if (data.containsKey('source_url')) {
+      context.handle(
+        _sourceUrlMeta,
+        sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -573,6 +690,30 @@ class $ExercisesTable extends Exercises
         DriftSqlType.string,
         data['${effectivePrefix}primary_muscle'],
       )!,
+      bodyPart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body_part'],
+      )!,
+      equipment: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}equipment'],
+      )!,
+      exerciseType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exercise_type'],
+      )!,
+      imageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_url'],
+      )!,
+      videoUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}video_url'],
+      )!,
+      sourceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_url'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -594,12 +735,24 @@ class Exercise extends DataClass implements Insertable<Exercise> {
   final String id;
   final String name;
   final String primaryMuscle;
+  final String bodyPart;
+  final String equipment;
+  final String exerciseType;
+  final String imageUrl;
+  final String videoUrl;
+  final String sourceUrl;
   final DateTime createdAt;
   final String syncStatus;
   const Exercise({
     required this.id,
     required this.name,
     required this.primaryMuscle,
+    required this.bodyPart,
+    required this.equipment,
+    required this.exerciseType,
+    required this.imageUrl,
+    required this.videoUrl,
+    required this.sourceUrl,
     required this.createdAt,
     required this.syncStatus,
   });
@@ -609,6 +762,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['primary_muscle'] = Variable<String>(primaryMuscle);
+    map['body_part'] = Variable<String>(bodyPart);
+    map['equipment'] = Variable<String>(equipment);
+    map['exercise_type'] = Variable<String>(exerciseType);
+    map['image_url'] = Variable<String>(imageUrl);
+    map['video_url'] = Variable<String>(videoUrl);
+    map['source_url'] = Variable<String>(sourceUrl);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
@@ -619,6 +778,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
       id: Value(id),
       name: Value(name),
       primaryMuscle: Value(primaryMuscle),
+      bodyPart: Value(bodyPart),
+      equipment: Value(equipment),
+      exerciseType: Value(exerciseType),
+      imageUrl: Value(imageUrl),
+      videoUrl: Value(videoUrl),
+      sourceUrl: Value(sourceUrl),
       createdAt: Value(createdAt),
       syncStatus: Value(syncStatus),
     );
@@ -633,6 +798,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       primaryMuscle: serializer.fromJson<String>(json['primaryMuscle']),
+      bodyPart: serializer.fromJson<String>(json['bodyPart']),
+      equipment: serializer.fromJson<String>(json['equipment']),
+      exerciseType: serializer.fromJson<String>(json['exerciseType']),
+      imageUrl: serializer.fromJson<String>(json['imageUrl']),
+      videoUrl: serializer.fromJson<String>(json['videoUrl']),
+      sourceUrl: serializer.fromJson<String>(json['sourceUrl']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
@@ -644,6 +815,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'primaryMuscle': serializer.toJson<String>(primaryMuscle),
+      'bodyPart': serializer.toJson<String>(bodyPart),
+      'equipment': serializer.toJson<String>(equipment),
+      'exerciseType': serializer.toJson<String>(exerciseType),
+      'imageUrl': serializer.toJson<String>(imageUrl),
+      'videoUrl': serializer.toJson<String>(videoUrl),
+      'sourceUrl': serializer.toJson<String>(sourceUrl),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
@@ -653,12 +830,24 @@ class Exercise extends DataClass implements Insertable<Exercise> {
     String? id,
     String? name,
     String? primaryMuscle,
+    String? bodyPart,
+    String? equipment,
+    String? exerciseType,
+    String? imageUrl,
+    String? videoUrl,
+    String? sourceUrl,
     DateTime? createdAt,
     String? syncStatus,
   }) => Exercise(
     id: id ?? this.id,
     name: name ?? this.name,
     primaryMuscle: primaryMuscle ?? this.primaryMuscle,
+    bodyPart: bodyPart ?? this.bodyPart,
+    equipment: equipment ?? this.equipment,
+    exerciseType: exerciseType ?? this.exerciseType,
+    imageUrl: imageUrl ?? this.imageUrl,
+    videoUrl: videoUrl ?? this.videoUrl,
+    sourceUrl: sourceUrl ?? this.sourceUrl,
     createdAt: createdAt ?? this.createdAt,
     syncStatus: syncStatus ?? this.syncStatus,
   );
@@ -669,6 +858,14 @@ class Exercise extends DataClass implements Insertable<Exercise> {
       primaryMuscle: data.primaryMuscle.present
           ? data.primaryMuscle.value
           : this.primaryMuscle,
+      bodyPart: data.bodyPart.present ? data.bodyPart.value : this.bodyPart,
+      equipment: data.equipment.present ? data.equipment.value : this.equipment,
+      exerciseType: data.exerciseType.present
+          ? data.exerciseType.value
+          : this.exerciseType,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
+      videoUrl: data.videoUrl.present ? data.videoUrl.value : this.videoUrl,
+      sourceUrl: data.sourceUrl.present ? data.sourceUrl.value : this.sourceUrl,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
@@ -682,6 +879,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('primaryMuscle: $primaryMuscle, ')
+          ..write('bodyPart: $bodyPart, ')
+          ..write('equipment: $equipment, ')
+          ..write('exerciseType: $exerciseType, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('videoUrl: $videoUrl, ')
+          ..write('sourceUrl: $sourceUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
@@ -689,8 +892,19 @@ class Exercise extends DataClass implements Insertable<Exercise> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, primaryMuscle, createdAt, syncStatus);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    primaryMuscle,
+    bodyPart,
+    equipment,
+    exerciseType,
+    imageUrl,
+    videoUrl,
+    sourceUrl,
+    createdAt,
+    syncStatus,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -698,6 +912,12 @@ class Exercise extends DataClass implements Insertable<Exercise> {
           other.id == this.id &&
           other.name == this.name &&
           other.primaryMuscle == this.primaryMuscle &&
+          other.bodyPart == this.bodyPart &&
+          other.equipment == this.equipment &&
+          other.exerciseType == this.exerciseType &&
+          other.imageUrl == this.imageUrl &&
+          other.videoUrl == this.videoUrl &&
+          other.sourceUrl == this.sourceUrl &&
           other.createdAt == this.createdAt &&
           other.syncStatus == this.syncStatus);
 }
@@ -706,6 +926,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> primaryMuscle;
+  final Value<String> bodyPart;
+  final Value<String> equipment;
+  final Value<String> exerciseType;
+  final Value<String> imageUrl;
+  final Value<String> videoUrl;
+  final Value<String> sourceUrl;
   final Value<DateTime> createdAt;
   final Value<String> syncStatus;
   final Value<int> rowid;
@@ -713,6 +939,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.primaryMuscle = const Value.absent(),
+    this.bodyPart = const Value.absent(),
+    this.equipment = const Value.absent(),
+    this.exerciseType = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.videoUrl = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -721,6 +953,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     required String id,
     required String name,
     required String primaryMuscle,
+    this.bodyPart = const Value.absent(),
+    this.equipment = const Value.absent(),
+    this.exerciseType = const Value.absent(),
+    this.imageUrl = const Value.absent(),
+    this.videoUrl = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
     required DateTime createdAt,
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -732,6 +970,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? primaryMuscle,
+    Expression<String>? bodyPart,
+    Expression<String>? equipment,
+    Expression<String>? exerciseType,
+    Expression<String>? imageUrl,
+    Expression<String>? videoUrl,
+    Expression<String>? sourceUrl,
     Expression<DateTime>? createdAt,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
@@ -740,6 +984,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (primaryMuscle != null) 'primary_muscle': primaryMuscle,
+      if (bodyPart != null) 'body_part': bodyPart,
+      if (equipment != null) 'equipment': equipment,
+      if (exerciseType != null) 'exercise_type': exerciseType,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (videoUrl != null) 'video_url': videoUrl,
+      if (sourceUrl != null) 'source_url': sourceUrl,
       if (createdAt != null) 'created_at': createdAt,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
@@ -750,6 +1000,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     Value<String>? id,
     Value<String>? name,
     Value<String>? primaryMuscle,
+    Value<String>? bodyPart,
+    Value<String>? equipment,
+    Value<String>? exerciseType,
+    Value<String>? imageUrl,
+    Value<String>? videoUrl,
+    Value<String>? sourceUrl,
     Value<DateTime>? createdAt,
     Value<String>? syncStatus,
     Value<int>? rowid,
@@ -758,6 +1014,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
       id: id ?? this.id,
       name: name ?? this.name,
       primaryMuscle: primaryMuscle ?? this.primaryMuscle,
+      bodyPart: bodyPart ?? this.bodyPart,
+      equipment: equipment ?? this.equipment,
+      exerciseType: exerciseType ?? this.exerciseType,
+      imageUrl: imageUrl ?? this.imageUrl,
+      videoUrl: videoUrl ?? this.videoUrl,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
       createdAt: createdAt ?? this.createdAt,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
@@ -775,6 +1037,24 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
     }
     if (primaryMuscle.present) {
       map['primary_muscle'] = Variable<String>(primaryMuscle.value);
+    }
+    if (bodyPart.present) {
+      map['body_part'] = Variable<String>(bodyPart.value);
+    }
+    if (equipment.present) {
+      map['equipment'] = Variable<String>(equipment.value);
+    }
+    if (exerciseType.present) {
+      map['exercise_type'] = Variable<String>(exerciseType.value);
+    }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
+    if (videoUrl.present) {
+      map['video_url'] = Variable<String>(videoUrl.value);
+    }
+    if (sourceUrl.present) {
+      map['source_url'] = Variable<String>(sourceUrl.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -794,6 +1074,12 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('primaryMuscle: $primaryMuscle, ')
+          ..write('bodyPart: $bodyPart, ')
+          ..write('equipment: $equipment, ')
+          ..write('exerciseType: $exerciseType, ')
+          ..write('imageUrl: $imageUrl, ')
+          ..write('videoUrl: $videoUrl, ')
+          ..write('sourceUrl: $sourceUrl, ')
           ..write('createdAt: $createdAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
@@ -2985,6 +3271,421 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   }
 }
 
+class $ProgressPhotoEntriesTable extends ProgressPhotoEntries
+    with TableInfo<$ProgressPhotoEntriesTable, ProgressPhotoEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProgressPhotoEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _imageDataUrlMeta = const VerificationMeta(
+    'imageDataUrl',
+  );
+  @override
+  late final GeneratedColumn<String> imageDataUrl = GeneratedColumn<String>(
+    'image_data_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    imageDataUrl,
+    note,
+    capturedAt,
+    createdAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'progress_photo_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProgressPhotoEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('image_data_url')) {
+      context.handle(
+        _imageDataUrlMeta,
+        imageDataUrl.isAcceptableOrUnknown(
+          data['image_data_url']!,
+          _imageDataUrlMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_imageDataUrlMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProgressPhotoEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProgressPhotoEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      imageDataUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_data_url'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}captured_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+    );
+  }
+
+  @override
+  $ProgressPhotoEntriesTable createAlias(String alias) {
+    return $ProgressPhotoEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class ProgressPhotoEntry extends DataClass
+    implements Insertable<ProgressPhotoEntry> {
+  final String id;
+  final String imageDataUrl;
+  final String note;
+  final DateTime capturedAt;
+  final DateTime createdAt;
+  final String syncStatus;
+  const ProgressPhotoEntry({
+    required this.id,
+    required this.imageDataUrl,
+    required this.note,
+    required this.capturedAt,
+    required this.createdAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['image_data_url'] = Variable<String>(imageDataUrl);
+    map['note'] = Variable<String>(note);
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  ProgressPhotoEntriesCompanion toCompanion(bool nullToAbsent) {
+    return ProgressPhotoEntriesCompanion(
+      id: Value(id),
+      imageDataUrl: Value(imageDataUrl),
+      note: Value(note),
+      capturedAt: Value(capturedAt),
+      createdAt: Value(createdAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory ProgressPhotoEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProgressPhotoEntry(
+      id: serializer.fromJson<String>(json['id']),
+      imageDataUrl: serializer.fromJson<String>(json['imageDataUrl']),
+      note: serializer.fromJson<String>(json['note']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'imageDataUrl': serializer.toJson<String>(imageDataUrl),
+      'note': serializer.toJson<String>(note),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  ProgressPhotoEntry copyWith({
+    String? id,
+    String? imageDataUrl,
+    String? note,
+    DateTime? capturedAt,
+    DateTime? createdAt,
+    String? syncStatus,
+  }) => ProgressPhotoEntry(
+    id: id ?? this.id,
+    imageDataUrl: imageDataUrl ?? this.imageDataUrl,
+    note: note ?? this.note,
+    capturedAt: capturedAt ?? this.capturedAt,
+    createdAt: createdAt ?? this.createdAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  ProgressPhotoEntry copyWithCompanion(ProgressPhotoEntriesCompanion data) {
+    return ProgressPhotoEntry(
+      id: data.id.present ? data.id.value : this.id,
+      imageDataUrl: data.imageDataUrl.present
+          ? data.imageDataUrl.value
+          : this.imageDataUrl,
+      note: data.note.present ? data.note.value : this.note,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProgressPhotoEntry(')
+          ..write('id: $id, ')
+          ..write('imageDataUrl: $imageDataUrl, ')
+          ..write('note: $note, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, imageDataUrl, note, capturedAt, createdAt, syncStatus);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProgressPhotoEntry &&
+          other.id == this.id &&
+          other.imageDataUrl == this.imageDataUrl &&
+          other.note == this.note &&
+          other.capturedAt == this.capturedAt &&
+          other.createdAt == this.createdAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class ProgressPhotoEntriesCompanion
+    extends UpdateCompanion<ProgressPhotoEntry> {
+  final Value<String> id;
+  final Value<String> imageDataUrl;
+  final Value<String> note;
+  final Value<DateTime> capturedAt;
+  final Value<DateTime> createdAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const ProgressPhotoEntriesCompanion({
+    this.id = const Value.absent(),
+    this.imageDataUrl = const Value.absent(),
+    this.note = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProgressPhotoEntriesCompanion.insert({
+    required String id,
+    required String imageDataUrl,
+    this.note = const Value.absent(),
+    required DateTime capturedAt,
+    required DateTime createdAt,
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       imageDataUrl = Value(imageDataUrl),
+       capturedAt = Value(capturedAt),
+       createdAt = Value(createdAt);
+  static Insertable<ProgressPhotoEntry> custom({
+    Expression<String>? id,
+    Expression<String>? imageDataUrl,
+    Expression<String>? note,
+    Expression<DateTime>? capturedAt,
+    Expression<DateTime>? createdAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (imageDataUrl != null) 'image_data_url': imageDataUrl,
+      if (note != null) 'note': note,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProgressPhotoEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? imageDataUrl,
+    Value<String>? note,
+    Value<DateTime>? capturedAt,
+    Value<DateTime>? createdAt,
+    Value<String>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return ProgressPhotoEntriesCompanion(
+      id: id ?? this.id,
+      imageDataUrl: imageDataUrl ?? this.imageDataUrl,
+      note: note ?? this.note,
+      capturedAt: capturedAt ?? this.capturedAt,
+      createdAt: createdAt ?? this.createdAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (imageDataUrl.present) {
+      map['image_data_url'] = Variable<String>(imageDataUrl.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProgressPhotoEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('imageDataUrl: $imageDataUrl, ')
+          ..write('note: $note, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2999,6 +3700,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlannedDayExercisesTable plannedDayExercises =
       $PlannedDayExercisesTable(this);
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
+  late final $ProgressPhotoEntriesTable progressPhotoEntries =
+      $ProgressPhotoEntriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3010,6 +3713,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     plannedWorkoutDays,
     plannedDayExercises,
     userProfiles,
+    progressPhotoEntries,
   ];
 }
 
@@ -3362,6 +4066,12 @@ typedef $$ExercisesTableCreateCompanionBuilder =
       required String id,
       required String name,
       required String primaryMuscle,
+      Value<String> bodyPart,
+      Value<String> equipment,
+      Value<String> exerciseType,
+      Value<String> imageUrl,
+      Value<String> videoUrl,
+      Value<String> sourceUrl,
       required DateTime createdAt,
       Value<String> syncStatus,
       Value<int> rowid,
@@ -3371,6 +4081,12 @@ typedef $$ExercisesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String> primaryMuscle,
+      Value<String> bodyPart,
+      Value<String> equipment,
+      Value<String> exerciseType,
+      Value<String> imageUrl,
+      Value<String> videoUrl,
+      Value<String> sourceUrl,
       Value<DateTime> createdAt,
       Value<String> syncStatus,
       Value<int> rowid,
@@ -3453,6 +4169,36 @@ class $$ExercisesTableFilterComposer
 
   ColumnFilters<String> get primaryMuscle => $composableBuilder(
     column: $table.primaryMuscle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bodyPart => $composableBuilder(
+    column: $table.bodyPart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get equipment => $composableBuilder(
+    column: $table.equipment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exerciseType => $composableBuilder(
+    column: $table.exerciseType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get videoUrl => $composableBuilder(
+    column: $table.videoUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3541,6 +4287,36 @@ class $$ExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bodyPart => $composableBuilder(
+    column: $table.bodyPart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get equipment => $composableBuilder(
+    column: $table.equipment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get exerciseType => $composableBuilder(
+    column: $table.exerciseType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+    column: $table.imageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get videoUrl => $composableBuilder(
+    column: $table.videoUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3571,6 +4347,26 @@ class $$ExercisesTableAnnotationComposer
     column: $table.primaryMuscle,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get bodyPart =>
+      $composableBuilder(column: $table.bodyPart, builder: (column) => column);
+
+  GeneratedColumn<String> get equipment =>
+      $composableBuilder(column: $table.equipment, builder: (column) => column);
+
+  GeneratedColumn<String> get exerciseType => $composableBuilder(
+    column: $table.exerciseType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get videoUrl =>
+      $composableBuilder(column: $table.videoUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceUrl =>
+      $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3667,6 +4463,12 @@ class $$ExercisesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> primaryMuscle = const Value.absent(),
+                Value<String> bodyPart = const Value.absent(),
+                Value<String> equipment = const Value.absent(),
+                Value<String> exerciseType = const Value.absent(),
+                Value<String> imageUrl = const Value.absent(),
+                Value<String> videoUrl = const Value.absent(),
+                Value<String> sourceUrl = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3674,6 +4476,12 @@ class $$ExercisesTableTableManager
                 id: id,
                 name: name,
                 primaryMuscle: primaryMuscle,
+                bodyPart: bodyPart,
+                equipment: equipment,
+                exerciseType: exerciseType,
+                imageUrl: imageUrl,
+                videoUrl: videoUrl,
+                sourceUrl: sourceUrl,
                 createdAt: createdAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
@@ -3683,6 +4491,12 @@ class $$ExercisesTableTableManager
                 required String id,
                 required String name,
                 required String primaryMuscle,
+                Value<String> bodyPart = const Value.absent(),
+                Value<String> equipment = const Value.absent(),
+                Value<String> exerciseType = const Value.absent(),
+                Value<String> imageUrl = const Value.absent(),
+                Value<String> videoUrl = const Value.absent(),
+                Value<String> sourceUrl = const Value.absent(),
                 required DateTime createdAt,
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3690,6 +4504,12 @@ class $$ExercisesTableTableManager
                 id: id,
                 name: name,
                 primaryMuscle: primaryMuscle,
+                bodyPart: bodyPart,
+                equipment: equipment,
+                exerciseType: exerciseType,
+                imageUrl: imageUrl,
+                videoUrl: videoUrl,
+                sourceUrl: sourceUrl,
                 createdAt: createdAt,
                 syncStatus: syncStatus,
                 rowid: rowid,
@@ -5461,6 +6281,247 @@ typedef $$UserProfilesTableProcessedTableManager =
       UserProfile,
       PrefetchHooks Function()
     >;
+typedef $$ProgressPhotoEntriesTableCreateCompanionBuilder =
+    ProgressPhotoEntriesCompanion Function({
+      required String id,
+      required String imageDataUrl,
+      Value<String> note,
+      required DateTime capturedAt,
+      required DateTime createdAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$ProgressPhotoEntriesTableUpdateCompanionBuilder =
+    ProgressPhotoEntriesCompanion Function({
+      Value<String> id,
+      Value<String> imageDataUrl,
+      Value<String> note,
+      Value<DateTime> capturedAt,
+      Value<DateTime> createdAt,
+      Value<String> syncStatus,
+      Value<int> rowid,
+    });
+
+class $$ProgressPhotoEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ProgressPhotoEntriesTable> {
+  $$ProgressPhotoEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imageDataUrl => $composableBuilder(
+    column: $table.imageDataUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProgressPhotoEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProgressPhotoEntriesTable> {
+  $$ProgressPhotoEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imageDataUrl => $composableBuilder(
+    column: $table.imageDataUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProgressPhotoEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProgressPhotoEntriesTable> {
+  $$ProgressPhotoEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get imageDataUrl => $composableBuilder(
+    column: $table.imageDataUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+}
+
+class $$ProgressPhotoEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProgressPhotoEntriesTable,
+          ProgressPhotoEntry,
+          $$ProgressPhotoEntriesTableFilterComposer,
+          $$ProgressPhotoEntriesTableOrderingComposer,
+          $$ProgressPhotoEntriesTableAnnotationComposer,
+          $$ProgressPhotoEntriesTableCreateCompanionBuilder,
+          $$ProgressPhotoEntriesTableUpdateCompanionBuilder,
+          (
+            ProgressPhotoEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $ProgressPhotoEntriesTable,
+              ProgressPhotoEntry
+            >,
+          ),
+          ProgressPhotoEntry,
+          PrefetchHooks Function()
+        > {
+  $$ProgressPhotoEntriesTableTableManager(
+    _$AppDatabase db,
+    $ProgressPhotoEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProgressPhotoEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProgressPhotoEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ProgressPhotoEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> imageDataUrl = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<DateTime> capturedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProgressPhotoEntriesCompanion(
+                id: id,
+                imageDataUrl: imageDataUrl,
+                note: note,
+                capturedAt: capturedAt,
+                createdAt: createdAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String imageDataUrl,
+                Value<String> note = const Value.absent(),
+                required DateTime capturedAt,
+                required DateTime createdAt,
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProgressPhotoEntriesCompanion.insert(
+                id: id,
+                imageDataUrl: imageDataUrl,
+                note: note,
+                capturedAt: capturedAt,
+                createdAt: createdAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProgressPhotoEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProgressPhotoEntriesTable,
+      ProgressPhotoEntry,
+      $$ProgressPhotoEntriesTableFilterComposer,
+      $$ProgressPhotoEntriesTableOrderingComposer,
+      $$ProgressPhotoEntriesTableAnnotationComposer,
+      $$ProgressPhotoEntriesTableCreateCompanionBuilder,
+      $$ProgressPhotoEntriesTableUpdateCompanionBuilder,
+      (
+        ProgressPhotoEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $ProgressPhotoEntriesTable,
+          ProgressPhotoEntry
+        >,
+      ),
+      ProgressPhotoEntry,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5477,4 +6538,6 @@ class $AppDatabaseManager {
       $$PlannedDayExercisesTableTableManager(_db, _db.plannedDayExercises);
   $$UserProfilesTableTableManager get userProfiles =>
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
+  $$ProgressPhotoEntriesTableTableManager get progressPhotoEntries =>
+      $$ProgressPhotoEntriesTableTableManager(_db, _db.progressPhotoEntries);
 }

@@ -28,6 +28,17 @@ class RestNotificationService {
     await _invoke('cancelRestComplete');
   }
 
+  Future<void> showTrainingOngoing({
+    required String title,
+    required String body,
+  }) async {
+    await _invoke('showTrainingOngoing', {'title': title, 'body': body});
+  }
+
+  Future<void> cancelTrainingOngoing() async {
+    await _invoke('cancelTrainingOngoing');
+  }
+
   Future<void> _invoke(String method, [Object? arguments]) async {
     if (kIsWeb) {
       return;

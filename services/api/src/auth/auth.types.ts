@@ -55,6 +55,7 @@ export type AuthStore = {
 export type AuthMessage = {
   message: string;
   expiresInSeconds?: number;
+  devCode?: string;
 };
 
 export type AuthSession = {

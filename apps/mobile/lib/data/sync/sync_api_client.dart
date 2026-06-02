@@ -19,22 +19,25 @@ class SyncApiClient {
   Future<AuthSession> register({
     required String email,
     required String password,
+    String? name,
   }) async {
-    await _dio.post<Map<String, Object?>>(
+    final response = await _dio.post<Map<String, Object?>>(
       '/auth/register',
-      data: {'email': email.trim(), 'password': password},
+      data: _authPayload(email: email, password: password, name: name),
     );
-    return const AuthSession.empty();
+    return AuthSession.fromJson(response.data ?? {});
   }
 
-  Future<void> requestRegistrationCode({
+  Future<AuthSession> requestRegistrationCode({
     required String email,
     required String password,
+    String? name,
   }) async {
-    await _dio.post<Map<String, Object?>>(
+    final response = await _dio.post<Map<String, Object?>>(
       '/auth/register',
-      data: {'email': email.trim(), 'password': password},
+      data: _authPayload(email: email, password: password, name: name),
     );
+    return AuthSession.fromJson(response.data ?? {});
   }
 
   Future<AuthSession> verifyRegistrationCode({
@@ -59,11 +62,12 @@ class SyncApiClient {
     return AuthSession.fromJson(response.data ?? {});
   }
 
-  Future<void> requestPasswordResetCode({required String email}) async {
-    await _dio.post<Map<String, Object?>>(
+  Future<AuthSession> requestPasswordResetCode({required String email}) async {
+    final response = await _dio.post<Map<String, Object?>>(
       '/auth/password-reset',
       data: {'email': email.trim()},
     );
+    return AuthSession.fromJson(response.data ?? {});
   }
 
   Future<AuthSession> confirmPasswordReset({
@@ -131,6 +135,20 @@ class SyncApiClient {
   Map<String, String> _authHeaders(String token) {
     return {'authorization': 'Bearer ${token.trim()}'};
   }
+
+  Map<String, Object?> _authPayload({
+    required String email,
+    required String password,
+    String? name,
+  }) {
+    final trimmedName = name?.trim() ?? '';
+    return {
+      'email': email.trim(),
+      'password': password,
+      'confirmPassword': password,
+      if (trimmedName.isNotEmpty) 'name': trimmedName,
+    };
+  }
 }
 
 class AuthSession {
@@ -138,9 +156,16 @@ class AuthSession {
     required this.token,
     required this.userId,
     required this.email,
+    required this.message,
+    required this.devCode,
   });
 
-  const AuthSession.empty() : token = '', userId = '', email = '';
+  const AuthSession.empty()
+    : token = '',
+      userId = '',
+      email = '',
+      message = '',
+      devCode = '';
 
   factory AuthSession.fromJson(Map<String, Object?> json) {
     final user = (json['user'] as Map?)?.cast<String, Object?>() ?? {};
@@ -148,12 +173,16 @@ class AuthSession {
       token: json['token']?.toString() ?? '',
       userId: user['id']?.toString() ?? '',
       email: user['email']?.toString() ?? '',
+      message: json['message']?.toString() ?? '',
+      devCode: json['devCode']?.toString() ?? '',
     );
   }
 
   final String token;
   final String userId;
   final String email;
+  final String message;
+  final String devCode;
 }
 
 class SyncUploadResult {

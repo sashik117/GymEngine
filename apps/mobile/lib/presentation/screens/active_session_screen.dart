@@ -9,6 +9,7 @@ import '../../core/notifications/rest_notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/weight_format.dart';
 import '../../core/widgets/bouncy_gym_button.dart';
+import '../../core/widgets/gym_exercise_image.dart';
 import '../../core/widgets/gym_panel.dart';
 import '../../data/repos/workout_session_repository.dart';
 import '../../domain/models/exercise.dart';
@@ -17,6 +18,7 @@ import '../../domain/models/training_day_plan.dart';
 import '../../domain/models/workout_set.dart';
 import '../bloc/locale_cubit.dart';
 import '../bloc/session_cubit.dart';
+import '../widgets/exercise_detail_sheet.dart';
 import 'summary_screen.dart';
 
 class ActiveSessionScreen extends StatefulWidget {
@@ -42,10 +44,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   var _selectedExerciseIndex = 0;
   ExerciseHistory _exerciseHistory = ExerciseHistory.empty();
   Timer? _restTimer;
+  Timer? _elapsedTimer;
   late int _restDurationSeconds;
   late _RestUnit _restUnit;
   int _restSeconds = 0;
   var _restFlash = false;
+  var _didRestoreExerciseFromSession = false;
 
   @override
   void initState() {
@@ -55,11 +59,31 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         ? _RestUnit.minutes
         : _RestUnit.seconds;
     _loadExercises();
+    _elapsedTimer = Timer.periodic(Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      final labels = context.read<LocaleCubit>().labels;
+      unawaited(context.read<RestNotificationService>().requestPermission());
+      unawaited(
+        context.read<RestNotificationService>().showTrainingOngoing(
+          title: labels.t('ongoingNotificationTitle'),
+          body: labels.t('ongoingNotificationBody'),
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
     _restTimer?.cancel();
+    _elapsedTimer?.cancel();
     _scrollController.dispose();
     _weightController.dispose();
     _repsController.dispose();
@@ -104,7 +128,47 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         _repsController.text = _selectedExercise!.targetReps.toString();
       }
     });
+    _restoreExerciseFromSession(context.read<SessionCubit>().state);
     await _loadExerciseHistory(_selectedExercise?.exercise);
+  }
+
+  void _restoreExerciseFromSession(SessionState session) {
+    if (_didRestoreExerciseFromSession || _exercises.isEmpty) {
+      return;
+    }
+
+    _didRestoreExerciseFromSession = true;
+    final index = _firstIncompleteExerciseIndex(session);
+    if (index == null || index == _selectedExerciseIndex) {
+      return;
+    }
+
+    _selectExerciseAt(index, shouldScrollToTop: false);
+  }
+
+  int? _firstIncompleteExerciseIndex(SessionState session) {
+    if (_exercises.isEmpty) {
+      return null;
+    }
+
+    for (final entry in _exercises.indexed) {
+      final logged = _loggedSetsFor(session, entry.$2);
+      if (logged < entry.$2.targetSets) {
+        return entry.$1;
+      }
+    }
+
+    return _exercises.length - 1;
+  }
+
+  int _loggedSetsFor(SessionState session, TrainingPlanExercise planExercise) {
+    return session.sets
+        .where(
+          (set) =>
+              set.exerciseId == planExercise.exercise.id ||
+              set.exerciseName == planExercise.exercise.name,
+        )
+        .length;
   }
 
   Future<void> _loadExerciseHistory(Exercise? exercise) async {
@@ -131,13 +195,14 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     final weight = double.tryParse(_weightController.text.replaceAll(',', '.'));
     final reps = int.tryParse(_repsController.text);
     final planExercise = _selectedExercise;
-    final exercise = planExercise?.exercise;
 
-    if (exercise == null || weight == null || reps == null) {
+    if (planExercise == null || weight == null || reps == null) {
       return;
     }
 
-    final didLog = await context.read<SessionCubit>().logSet(
+    final exercise = planExercise.exercise;
+    final sessionCubit = context.read<SessionCubit>();
+    final didLog = await sessionCubit.logSet(
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       weightKg: weight,
@@ -145,13 +210,57 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     );
     if (didLog) {
       await _loadExerciseHistory(exercise);
+      if (!mounted) {
+        return;
+      }
       _startRestTimer();
       HapticFeedback.mediumImpact();
+      final session = sessionCubit.state;
+      final completedTargetSets =
+          _loggedSetsFor(session, planExercise) >= planExercise.targetSets;
+      if (completedTargetSets &&
+          _selectedExerciseIndex < _exercises.length - 1) {
+        final nextExercise = _exercises[_selectedExerciseIndex + 1].exercise;
+        await Future<void>.delayed(Duration(milliseconds: 220));
+        if (!mounted) {
+          return;
+        }
+        _selectExerciseAt(_selectedExerciseIndex + 1, shouldScrollToTop: false);
+        _showNextExerciseSnack(nextExercise);
+      }
     }
+  }
+
+  void _showNextExerciseSnack(Exercise exercise) {
+    final labels = context.read<LocaleCubit>().labels;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 1500),
+          content: Row(
+            children: [
+              Icon(Icons.skip_next, color: AppColors.lime, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  labels.language == GymLanguage.uk
+                      ? 'Наступна вправа: ${labels.exerciseName(exercise.id, exercise.name)}'
+                      : 'Next exercise: ${labels.exerciseName(exercise.id, exercise.name)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 
   void _startRestTimer() {
     _restTimer?.cancel();
+    unawaited(context.read<RestNotificationService>().cancelRestComplete());
     setState(() {
       _restSeconds = _restDurationSeconds;
     });
@@ -213,7 +322,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     });
   }
 
-  void _selectExerciseAt(int index) {
+  void _selectExerciseAt(int index, {bool shouldScrollToTop = true}) {
     if (index < 0 || index >= _exercises.length) {
       return;
     }
@@ -225,7 +334,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       _repsController.text = exercise.targetReps.toString();
     });
     _loadExerciseHistory(exercise.exercise);
-    if (_scrollController.hasClients) {
+    if (shouldScrollToTop && _scrollController.hasClients) {
       _scrollController.animateTo(
         0,
         duration: Duration(milliseconds: 260),
@@ -237,6 +346,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Future<void> _finishSession() async {
     _restTimer?.cancel();
     unawaited(context.read<RestNotificationService>().cancelRestComplete());
+    unawaited(context.read<RestNotificationService>().cancelTrainingOngoing());
     setState(() {
       _restSeconds = 0;
     });
@@ -257,134 +367,146 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   Widget build(BuildContext context) {
     final labels = context.watch<LocaleCubit>().labels;
 
-    return Scaffold(
-      bottomNavigationBar: SafeArea(
-        minimum: EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: BlocBuilder<SessionCubit, SessionState>(
-          builder: (context, session) {
-            return BouncyGymButton(
-              label: labels.t('finishSession'),
-              height: 56,
-              isOutlined: true,
-              backgroundColor: session.sets.isEmpty
-                  ? AppColors.border
-                  : AppColors.lime,
-              foregroundColor: AppColors.text,
-              icon: Icons.flag,
-              onTap: session.sets.isEmpty ? null : _finishSession,
-            );
-          },
+    return BlocListener<SessionCubit, SessionState>(
+      listenWhen: (previous, current) =>
+          previous.sessionId != current.sessionId ||
+          previous.setCount != current.setCount,
+      listener: (context, session) => _restoreExerciseFromSession(session),
+      child: Scaffold(
+        bottomNavigationBar: SafeArea(
+          minimum: EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: BlocBuilder<SessionCubit, SessionState>(
+            builder: (context, session) {
+              return BouncyGymButton(
+                label: labels.t('finishSession'),
+                height: 56,
+                isOutlined: true,
+                backgroundColor: session.sets.isEmpty
+                    ? AppColors.border
+                    : AppColors.lime,
+                foregroundColor: AppColors.text,
+                icon: Icons.flag,
+                onTap: session.sets.isEmpty ? null : _finishSession,
+              );
+            },
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            _RestBackgroundFill(
-              isFlashing: _restFlash,
-              progress: _restDurationSeconds <= 0
-                  ? 0
-                  : _restSeconds / _restDurationSeconds,
-            ),
-            Padding(
-              padding: EdgeInsets.all(20),
-              child: BlocBuilder<SessionCubit, SessionState>(
-                builder: (context, session) {
-                  return ListView(
-                    controller: _scrollController,
-                    children: [
-                      _SessionHeader(
-                        labels: labels,
-                        setCount: session.setCount,
-                        onBack: () => Navigator.of(context).pop(),
-                      ),
-                      SizedBox(height: 22),
-                      if (_exercises.isNotEmpty) ...[
-                        _PlanProgressPanel(
+        body: SafeArea(
+          child: Stack(
+            children: [
+              _RestBackgroundFill(
+                isFlashing: _restFlash,
+                progress: _restDurationSeconds <= 0
+                    ? 0
+                    : _restSeconds / _restDurationSeconds,
+              ),
+              Padding(
+                padding: EdgeInsets.all(20),
+                child: BlocBuilder<SessionCubit, SessionState>(
+                  builder: (context, session) {
+                    return ListView(
+                      key: ValueKey('active-session-scroll'),
+                      controller: _scrollController,
+                      padding: EdgeInsets.only(bottom: 24),
+                      children: [
+                        _SessionHeader(
                           labels: labels,
-                          exercises: _exercises,
-                          selectedIndex: _selectedExerciseIndex,
-                          onSelect: _selectExerciseAt,
+                          setCount: session.setCount,
+                          startedAt: session.startedAt,
+                          onBack: () => Navigator.of(context).pop(),
                         ),
+                        SizedBox(height: 12),
+                        _OngoingWorkoutBanner(labels: labels),
                         SizedBox(height: 14),
-                      ],
-                      _LiftInputs(
-                        exercises: _exercises,
-                        selectedExercise: _selectedExercise,
-                        onExerciseChanged: (exercise) {
-                          setState(() {
-                            _selectedExercise = exercise;
-                            _repsController.text = exercise.targetReps
-                                .toString();
-                            _selectedExerciseIndex = _exercises.indexWhere(
-                              (item) =>
-                                  item.exercise.id == exercise.exercise.id,
-                            );
-                            if (_selectedExerciseIndex < 0) {
-                              _selectedExerciseIndex = 0;
-                            }
-                          });
-                          _loadExerciseHistory(exercise.exercise);
-                        },
-                        exerciseHistory: _exerciseHistory,
-                        weightController: _weightController,
-                        repsController: _repsController,
-                        onLogSet: _logSet,
-                        labels: labels,
-                      ),
-                      SizedBox(height: 20),
-                      if (_restSeconds > 0)
-                        _RestTimerBanner(
-                          labels: labels,
-                          secondsRemaining: _restSeconds,
-                          totalSeconds: _restDurationSeconds,
-                          onCancel: _cancelRestTimer,
-                        )
-                      else
-                        _RestControls(
-                          labels: labels,
-                          seconds: _restDurationSeconds,
-                          unit: _restUnit,
-                          onUnitChanged: (value) {
+                        if (_exercises.isNotEmpty) ...[
+                          _PlanProgressPanel(
+                            labels: labels,
+                            exercises: _exercises,
+                            session: session,
+                            selectedIndex: _selectedExerciseIndex,
+                            onSelect: _selectExerciseAt,
+                          ),
+                          SizedBox(height: 14),
+                        ],
+                        _LiftInputs(
+                          exercises: _exercises,
+                          selectedExercise: _selectedExercise,
+                          onExerciseChanged: (exercise) {
                             setState(() {
-                              _restUnit = value;
-                              if (value == _RestUnit.minutes &&
-                                  _restDurationSeconds < 60) {
-                                _restDurationSeconds = 60;
+                              _selectedExercise = exercise;
+                              _repsController.text = exercise.targetReps
+                                  .toString();
+                              _selectedExerciseIndex = _exercises.indexWhere(
+                                (item) =>
+                                    item.exercise.id == exercise.exercise.id,
+                              );
+                              if (_selectedExerciseIndex < 0) {
+                                _selectedExerciseIndex = 0;
                               }
                             });
+                            _loadExerciseHistory(exercise.exercise);
                           },
-                          onChanged: (value) {
-                            setState(() {
-                              _restDurationSeconds = value;
-                            });
-                          },
+                          exerciseHistory: _exerciseHistory,
+                          weightController: _weightController,
+                          repsController: _repsController,
+                          onLogSet: _logSet,
+                          labels: labels,
                         ),
-                      SizedBox(height: 14),
-                      _SessionStats(labels: labels, session: session),
-                      SizedBox(height: 14),
-                      _ExerciseStepper(
-                        labels: labels,
-                        canGoBack: _selectedExerciseIndex > 0,
-                        canGoNext:
-                            _selectedExerciseIndex < _exercises.length - 1,
-                        onBack: () =>
-                            _selectExerciseAt(_selectedExerciseIndex - 1),
-                        onNext: () =>
-                            _selectExerciseAt(_selectedExerciseIndex + 1),
-                      ),
-                      SizedBox(height: 18),
-                      _SetList(
-                        labels: labels,
-                        session: session,
-                        onCancelSet: context.read<SessionCubit>().cancelSet,
-                      ),
-                      SizedBox(height: 16),
-                    ],
-                  );
-                },
+                        SizedBox(height: 20),
+                        if (_restSeconds > 0)
+                          _RestTimerBanner(
+                            labels: labels,
+                            secondsRemaining: _restSeconds,
+                            totalSeconds: _restDurationSeconds,
+                            onCancel: _cancelRestTimer,
+                          )
+                        else
+                          _RestControls(
+                            labels: labels,
+                            seconds: _restDurationSeconds,
+                            unit: _restUnit,
+                            onUnitChanged: (value) {
+                              setState(() {
+                                _restUnit = value;
+                                if (value == _RestUnit.minutes &&
+                                    _restDurationSeconds < 60) {
+                                  _restDurationSeconds = 60;
+                                }
+                              });
+                            },
+                            onChanged: (value) {
+                              setState(() {
+                                _restDurationSeconds = value;
+                              });
+                            },
+                          ),
+                        SizedBox(height: 14),
+                        _SessionStats(labels: labels, session: session),
+                        SizedBox(height: 14),
+                        _ExerciseStepper(
+                          labels: labels,
+                          canGoBack: _selectedExerciseIndex > 0,
+                          canGoNext:
+                              _selectedExerciseIndex < _exercises.length - 1,
+                          onBack: () =>
+                              _selectExerciseAt(_selectedExerciseIndex - 1),
+                          onNext: () =>
+                              _selectExerciseAt(_selectedExerciseIndex + 1),
+                        ),
+                        SizedBox(height: 18),
+                        _SetList(
+                          labels: labels,
+                          session: session,
+                          onCancelSet: context.read<SessionCubit>().cancelSet,
+                        ),
+                        SizedBox(height: 16),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -513,14 +635,26 @@ class _PlanProgressPanel extends StatelessWidget {
   const _PlanProgressPanel({
     required this.labels,
     required this.exercises,
+    required this.session,
     required this.selectedIndex,
     required this.onSelect,
   });
 
   final GymLabels labels;
   final List<TrainingPlanExercise> exercises;
+  final SessionState session;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+
+  int _loggedSetsFor(TrainingPlanExercise item) {
+    return session.sets
+        .where(
+          (set) =>
+              set.exerciseId == item.exercise.id ||
+              set.exerciseName == item.exercise.name,
+        )
+        .length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +680,7 @@ class _PlanProgressPanel extends StatelessWidget {
           ),
           SizedBox(height: 10),
           SizedBox(
-            height: 42,
+            height: 58,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: exercises.length,
@@ -555,32 +689,83 @@ class _PlanProgressPanel extends StatelessWidget {
                 final item = exercises[index];
                 final exercise = item.exercise;
                 final isSelected = index == selectedIndex;
+                final loggedSets = _loggedSetsFor(item);
+                final isDone = loggedSets >= item.targetSets;
 
                 return InkWell(
                   onTap: () => onSelect(index),
                   borderRadius: BorderRadius.circular(6),
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 160),
-                    constraints: BoxConstraints(minWidth: 72),
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.center,
+                    width: 154,
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? AppColors.lime : AppColors.surface,
                       border: Border.all(
-                        color: isSelected ? AppColors.lime : AppColors.border,
+                        color: isDone
+                            ? AppColors.lime
+                            : (isSelected ? AppColors.lime : AppColors.border),
                       ),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      '${labels.exerciseName(exercise.id, exercise.name)} · ${item.targetSets}x · ${item.targetReps}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isSelected ? AppColors.ink : AppColors.text,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                      ),
+                    child: Row(
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.ink.withValues(alpha: 0.12)
+                                : AppColors.black.withValues(alpha: 0.34),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Icon(
+                              isDone ? Icons.check : Icons.fitness_center,
+                              color: isSelected
+                                  ? AppColors.ink
+                                  : AppColors.lime,
+                              size: 17,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                labels.exerciseName(exercise.id, exercise.name),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? AppColors.ink
+                                      : AppColors.text,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '$loggedSets/${item.targetSets} · ${item.targetReps} ${labels.t('repsSmall')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? AppColors.ink.withValues(alpha: 0.68)
+                                      : AppColors.muted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -641,11 +826,13 @@ class _SessionHeader extends StatelessWidget {
   const _SessionHeader({
     required this.labels,
     required this.setCount,
+    required this.startedAt,
     required this.onBack,
   });
 
   final GymLabels labels;
   final int setCount;
+  final DateTime startedAt;
   final VoidCallback onBack;
 
   @override
@@ -697,20 +884,84 @@ class _SessionHeader extends StatelessWidget {
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Text(
-              '$setCount ${labels.t('sets')}',
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$setCount ${labels.t('sets')}',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  _formatSessionDuration(DateTime.now().difference(startedAt)),
+                  style: TextStyle(
+                    color: AppColors.lime,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+}
+
+class _OngoingWorkoutBanner extends StatelessWidget {
+  const _OngoingWorkoutBanner({required this.labels});
+
+  final GymLabels labels;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.lime.withValues(alpha: 0.12),
+        border: Border.all(color: AppColors.lime),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.radio_button_checked, color: AppColors.lime, size: 16),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                labels.t('workoutRunning'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.lime,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatSessionDuration(Duration duration) {
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  if (hours > 0) {
+    return '$hours:$minutes:$seconds';
+  }
+  return '$minutes:$seconds';
 }
 
 class _LiftInputs extends StatelessWidget {
@@ -747,6 +998,13 @@ class _LiftInputs extends StatelessWidget {
               onChanged: onExerciseChanged,
               labels: labels,
             ),
+            if (selectedExercise != null) ...[
+              SizedBox(height: 8),
+              _TechniquePeek(
+                labels: labels,
+                exercise: selectedExercise!.exercise,
+              ),
+            ],
             if ((selectedExercise?.comment.trim().isNotEmpty ?? false)) ...[
               SizedBox(height: 8),
               _ExerciseCommentBanner(comment: selectedExercise!.comment),
@@ -819,6 +1077,120 @@ class _ExerciseCommentBanner extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TechniquePeek extends StatelessWidget {
+  const _TechniquePeek({required this.labels, required this.exercise});
+
+  final GymLabels labels;
+  final Exercise exercise;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = exercise.imageUrl.trim();
+    final hasMedia =
+        imageUrl.isNotEmpty ||
+        exercise.videoUrl.trim().isNotEmpty ||
+        exercise.sourceUrl.trim().isNotEmpty;
+
+    return InkWell(
+      onTap: () => showExerciseDetailSheet(
+        context: context,
+        labels: labels,
+        exercise: exercise,
+      ),
+      borderRadius: BorderRadius.circular(6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.black.withValues(alpha: 0.32),
+          border: Border.all(
+            color: hasMedia ? AppColors.lime : AppColors.border,
+          ),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              _TechniqueThumb(imageUrl: imageUrl, hasMedia: hasMedia),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  labels.language == GymLanguage.uk
+                      ? 'Техніка виконання'
+                      : 'Exercise technique',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+              Text(
+                hasMedia
+                    ? (labels.language == GymLanguage.uk ? 'ВІДКРИТИ' : 'OPEN')
+                    : (labels.language == GymLanguage.uk
+                          ? 'ДЕТАЛІ'
+                          : 'DETAILS'),
+                style: TextStyle(
+                  color: AppColors.lime,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TechniqueThumb extends StatelessWidget {
+  const _TechniqueThumb({required this.imageUrl, required this.hasMedia});
+
+  final String imageUrl;
+  final bool hasMedia;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.black,
+            border: Border.all(color: AppColors.lime.withValues(alpha: 0.42)),
+          ),
+          child: imageUrl.isEmpty
+              ? Icon(
+                  hasMedia ? Icons.play_circle_fill : Icons.info_outline,
+                  color: AppColors.lime,
+                  size: 22,
+                )
+              : GymExerciseImage(
+                  key: ValueKey('active-technique-$imageUrl'),
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      hasMedia ? Icons.play_circle_fill : Icons.info_outline,
+                      color: AppColors.lime,
+                      size: 22,
+                    );
+                  },
+                ),
         ),
       ),
     );

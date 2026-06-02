@@ -11,6 +11,9 @@ class AnalyticsSnapshot extends Equatable {
     required this.exerciseStats,
     required this.trainingDates,
     required this.trainingDays,
+    required this.weeklyWorkoutCount,
+    required this.totalTrainingSeconds,
+    required this.currentStreakDays,
   });
 
   const AnalyticsSnapshot.empty()
@@ -22,7 +25,10 @@ class AnalyticsSnapshot extends Equatable {
       muscleVolumes = const [],
       exerciseStats = const [],
       trainingDates = const [],
-      trainingDays = const [];
+      trainingDays = const [],
+      weeklyWorkoutCount = 0,
+      totalTrainingSeconds = 0,
+      currentStreakDays = 0;
 
   final double totalVolumeKg;
   final double bestEstimatedOneRepMaxKg;
@@ -33,6 +39,9 @@ class AnalyticsSnapshot extends Equatable {
   final List<ExerciseWeightStats> exerciseStats;
   final List<DateTime> trainingDates;
   final List<TrainingDaySummary> trainingDays;
+  final int weeklyWorkoutCount;
+  final int totalTrainingSeconds;
+  final int currentStreakDays;
 
   @override
   List<Object?> get props => [
@@ -45,6 +54,9 @@ class AnalyticsSnapshot extends Equatable {
     exerciseStats,
     trainingDates,
     trainingDays,
+    weeklyWorkoutCount,
+    totalTrainingSeconds,
+    currentStreakDays,
   ];
 }
 
@@ -59,13 +71,18 @@ class DailyVolume extends Equatable {
 }
 
 class MuscleVolume extends Equatable {
-  const MuscleVolume({required this.muscle, required this.volumeKg});
+  const MuscleVolume({
+    required this.muscle,
+    required this.volumeKg,
+    this.setCount = 0,
+  });
 
   final String muscle;
   final double volumeKg;
+  final int setCount;
 
   @override
-  List<Object?> get props => [muscle, volumeKg];
+  List<Object?> get props => [muscle, volumeKg, setCount];
 }
 
 class ExerciseWeightStats extends Equatable {
@@ -78,6 +95,8 @@ class ExerciseWeightStats extends Equatable {
     required this.maxReps,
     required this.totalSets,
     required this.lastLoggedAt,
+    this.primaryMuscle = 'Custom',
+    this.totalVolumeKg = 0,
   });
 
   final String? exerciseId;
@@ -88,6 +107,8 @@ class ExerciseWeightStats extends Equatable {
   final int maxReps;
   final int totalSets;
   final DateTime lastLoggedAt;
+  final String primaryMuscle;
+  final double totalVolumeKg;
 
   @override
   List<Object?> get props => [
@@ -99,6 +120,8 @@ class ExerciseWeightStats extends Equatable {
     maxReps,
     totalSets,
     lastLoggedAt,
+    primaryMuscle,
+    totalVolumeKg,
   ];
 }
 

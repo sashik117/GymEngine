@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -79,10 +81,47 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
   @override
   Widget build(BuildContext context) {
     return switch (_phase) {
-      _AuthGatePhase.app => AppShellScreen(),
+      _AuthGatePhase.app => const _WebPhoneFrame(child: AppShellScreen()),
       _AuthGatePhase.auth => _AuthScreen(onAuthenticated: _enterApp),
       _AuthGatePhase.checking => const _AuthLoadingScreen(),
     };
+  }
+}
+
+class _WebPhoneFrame extends StatelessWidget {
+  const _WebPhoneFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kIsWeb || MediaQuery.sizeOf(context).width < 700) {
+      return child;
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      body: Center(
+        child: Container(
+          width: 430,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.black,
+            border: Border.symmetric(
+              vertical: BorderSide(color: AppColors.border),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.lime.withValues(alpha: 0.08),
+                blurRadius: 44,
+                spreadRadius: -18,
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
   }
 }
 
@@ -208,11 +247,11 @@ class _AuthScreenState extends State<_AuthScreen> {
       if (mounted) {
         await widget.onAuthenticated();
       }
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
-      _showAuthError(labels);
+      _showAuthError(labels, error);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -237,24 +276,41 @@ class _AuthScreenState extends State<_AuthScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await context.read<WorkoutSessionRepository>().requestRegistrationCode(
+      final profile = UserProfile.empty().copyWith(
+        displayName: name,
+        email: email,
+        syncBaseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      );
+      await context.read<WorkoutSessionRepository>().registerAccount(
+        profile: profile,
         baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
         email: email,
         password: password,
       );
+      if (mounted) {
+        await widget.onAuthenticated();
+      }
+    } on SyncException catch (error) {
+      if (error.code != 'verification_required') {
+        if (mounted) {
+          _showAuthError(labels, error);
+        }
+        return;
+      }
       if (!mounted) {
         return;
       }
+      final devCode = error.cause?.toString() ?? '';
       setState(() {
         _pendingRegistrationEmail = email;
         _pendingRegistrationName = name;
         _codeController.clear();
         _mode = _AuthMode.verifyRegistration;
       });
-      _showSnack(labels.t('codeSent'));
-    } catch (_) {
+      _showSnack(_codeSentMessage(labels, devCode));
+    } catch (error) {
       if (mounted) {
-        _showAuthError(labels);
+        _showAuthError(labels, error);
       }
     } finally {
       if (mounted) {
@@ -291,9 +347,9 @@ class _AuthScreenState extends State<_AuthScreen> {
       if (mounted) {
         await widget.onAuthenticated();
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        _showAuthError(labels);
+        _showAuthError(labels, error);
       }
     } finally {
       if (mounted) {
@@ -312,23 +368,26 @@ class _AuthScreenState extends State<_AuthScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await context.read<WorkoutSessionRepository>().requestPasswordResetCode(
-        baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
-        email: email,
-      );
+      final devCode = await context
+          .read<WorkoutSessionRepository>()
+          .requestPasswordResetCode(
+            baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+            email: email,
+          );
       if (!mounted) {
         return;
       }
+      final cleanDevCode = devCode?.trim() ?? '';
       setState(() {
-        _codeController.clear();
+        _codeController.text = cleanDevCode;
         _passwordController.clear();
         _confirmPasswordController.clear();
         _mode = _AuthMode.resetConfirm;
       });
-      _showSnack(labels.t('resetCodeSent'));
-    } catch (_) {
+      _showSnack(_codeSentMessage(labels, cleanDevCode, reset: true));
+    } catch (error) {
       if (mounted) {
-        _showAuthError(labels);
+        _showAuthError(labels, error);
       }
     } finally {
       if (mounted) {
@@ -369,9 +428,9 @@ class _AuthScreenState extends State<_AuthScreen> {
       if (mounted) {
         await widget.onAuthenticated();
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        _showAuthError(labels);
+        _showAuthError(labels, error);
       }
     } finally {
       if (mounted) {
@@ -380,14 +439,65 @@ class _AuthScreenState extends State<_AuthScreen> {
     }
   }
 
-  void _showAuthError(GymLabels labels) {
-    _showSnack(labels.t('authFailed'));
+  void _showAuthError(GymLabels labels, [Object? error]) {
+    _showSnack(_authErrorMessage(labels, error));
+  }
+
+  String _authErrorMessage(GymLabels labels, Object? error) {
+    final isUk = labels.language == GymLanguage.uk;
+    final baseUrl = WorkoutSessionRepository.defaultSyncBaseUrl;
+
+    if (error is DioException) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        return isUk
+            ? 'Пошта або пароль не підходять. Спробуй ще раз.'
+            : 'Email or password is incorrect. Try again.';
+      }
+      if (statusCode == 400) {
+        return isUk
+            ? 'Перевір пошту, пароль або код. Десь формат не підходить.'
+            : 'Check email, password, or code format.';
+      }
+      if (statusCode != null) {
+        return isUk
+            ? 'Сервер відповів помилкою $statusCode.'
+            : 'Server returned error $statusCode.';
+      }
+
+      return isUk
+          ? 'Телефон не бачить сервер: $baseUrl'
+          : 'Phone cannot reach server: $baseUrl';
+    }
+
+    if (error is SyncException) {
+      return isUk
+          ? 'Синхронізація не пройшла: ${error.code}'
+          : 'Sync failed: ${error.code}';
+    }
+
+    return labels.t('authFailed');
   }
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _codeSentMessage(
+    GymLabels labels,
+    String devCode, {
+    bool reset = false,
+  }) {
+    final base = reset ? labels.t('resetCodeSent') : labels.t('codeSent');
+    final cleanedCode = devCode.trim();
+    if (cleanedCode.isEmpty) {
+      return base;
+    }
+    return labels.language == GymLanguage.uk
+        ? '$base Код для локального тесту: $cleanedCode'
+        : '$base Local test code: $cleanedCode';
   }
 
   void _switchMode(_AuthMode mode) {
@@ -424,198 +534,169 @@ class _AuthScreenState extends State<_AuthScreen> {
     };
 
     return Scaffold(
-      floatingActionButton: GymLanguageToggle(),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(top: 8, right: 4),
+        child: GymLanguageToggle(compact: true),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: SafeArea(
         child: CustomPaint(
           painter: const _AuthBackgroundPainter(),
           child: Center(
-            child: ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.fromLTRB(20, 48, 20, 28),
-              children: [
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.94, end: 1),
-                  duration: Duration(milliseconds: 420),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, scale, child) {
-                    return Transform.scale(scale: scale, child: child);
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: AppColors.lime,
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.lime.withValues(alpha: 0.28),
-                                  blurRadius: 22,
-                                  spreadRadius: -4,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: kIsWeb && MediaQuery.sizeOf(context).width >= 700
+                    ? 500
+                    : 460,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.fromLTRB(20, 48, 20, 28),
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.94, end: 1),
+                    duration: Duration(milliseconds: 420),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, scale, child) {
+                      return Transform.scale(scale: scale, child: child);
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.lime,
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.lime.withValues(
+                                      alpha: 0.28,
+                                    ),
+                                    blurRadius: 22,
+                                    spreadRadius: -4,
+                                  ),
+                                ],
+                              ),
+                              child: SizedBox(
+                                width: 42,
+                                height: 42,
+                                child: Icon(
+                                  Icons.fitness_center,
+                                  color: AppColors.ink,
+                                  size: 22,
                                 ),
-                              ],
-                            ),
-                            child: SizedBox(
-                              width: 42,
-                              height: 42,
-                              child: Icon(
-                                Icons.fitness_center,
-                                color: AppColors.ink,
-                                size: 22,
                               ),
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'GYMENGINE',
+                            SizedBox(width: 12),
+                            Text(
+                              'GYMENGINE',
+                              style: TextStyle(
+                                color: AppColors.lime,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 18),
+                        AnimatedSwitcher(
+                          duration: Duration(milliseconds: 220),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: Offset(0, 0.08),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Text(
+                            title,
+                            key: ValueKey(title),
                             style: TextStyle(
-                              color: AppColors.lime,
-                              fontSize: 14,
+                              color: AppColors.text,
+                              fontSize: 32,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0,
                             ),
                           ),
-                        ],
-                      ),
-                      SizedBox(height: 18),
-                      AnimatedSwitcher(
-                        duration: Duration(milliseconds: 220),
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: Offset(0, 0.08),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Text(
-                          title,
-                          key: ValueKey(title),
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0,
-                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: 18),
-                GymPanel(
-                  padding: EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_mode == _AuthMode.login ||
-                          _mode == _AuthMode.register)
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: AppColors.ink,
-                            border: Border.all(color: AppColors.border),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _AuthModeButton(
-                                  label: labels.t('login'),
-                                  isSelected: _mode == _AuthMode.login,
-                                  onTap: () => _switchMode(_AuthMode.login),
-                                ),
-                              ),
-                              Expanded(
-                                child: _AuthModeButton(
-                                  label: labels.t('register'),
-                                  isSelected: _mode == _AuthMode.register,
-                                  onTap: () => _switchMode(_AuthMode.register),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        _AuthBackButton(
-                          label: labels.t('backToLogin'),
-                          onTap: () => _switchMode(_AuthMode.login),
-                        ),
-                      SizedBox(height: 14),
-                      _AuthTextField(
-                        controller: _emailController,
-                        label: labels.t('email'),
-                        icon: Icons.alternate_email,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                      ),
-                      AnimatedSize(
-                        duration: Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedSwitcher(
-                          duration: Duration(milliseconds: 180),
-                          child: isCodeMode
-                              ? Padding(
-                                  key: ValueKey('code-field'),
-                                  padding: EdgeInsets.only(top: 12),
-                                  child: _AuthTextField(
-                                    controller: _codeController,
-                                    label: labels.t('emailCode'),
-                                    icon: Icons.pin,
-                                    keyboardType: TextInputType.number,
-                                    textInputAction: TextInputAction.next,
-                                  ),
-                                )
-                              : SizedBox.shrink(key: ValueKey('no-code-field')),
-                        ),
-                      ),
-                      AnimatedSize(
-                        duration: Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedSwitcher(
-                          duration: Duration(milliseconds: 180),
-                          child: isRegisterMode
-                              ? Padding(
-                                  key: ValueKey('name-field'),
-                                  padding: EdgeInsets.only(top: 12),
-                                  child: _AuthTextField(
-                                    controller: _nameController,
-                                    label: labels.t('profileName'),
-                                    icon: Icons.person,
-                                    textCapitalization:
-                                        TextCapitalization.words,
-                                    autofillHints: const [AutofillHints.name],
-                                  ),
-                                )
-                              : SizedBox.shrink(key: ValueKey('no-name-field')),
-                        ),
-                      ),
-                      if (_mode != _AuthMode.resetRequest) ...[
-                        SizedBox(height: 12),
-                        _AuthTextField(
-                          controller: _passwordController,
-                          label: _mode == _AuthMode.resetConfirm
-                              ? labels.t('newPassword')
-                              : labels.t('password'),
-                          icon: Icons.lock,
-                          obscureText: !_isPasswordVisible,
-                          autofillHints: const [AutofillHints.password],
-                          textInputAction:
-                              isRegisterMode || _mode == _AuthMode.resetConfirm
-                              ? TextInputAction.next
-                              : TextInputAction.done,
-                          onSubmitted: (_) => _isSubmitting ? null : _submit(),
-                          suffix: _PasswordEyeButton(
-                            isVisible: _isPasswordVisible,
-                            onTap: () => setState(
-                              () => _isPasswordVisible = !_isPasswordVisible,
+                  SizedBox(height: 18),
+                  GymPanel(
+                    padding: EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_mode == _AuthMode.login ||
+                            _mode == _AuthMode.register)
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppColors.ink,
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(6),
                             ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _AuthModeButton(
+                                    label: labels.t('login'),
+                                    isSelected: _mode == _AuthMode.login,
+                                    onTap: () => _switchMode(_AuthMode.login),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _AuthModeButton(
+                                    label: labels.t('register'),
+                                    isSelected: _mode == _AuthMode.register,
+                                    onTap: () =>
+                                        _switchMode(_AuthMode.register),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          _AuthBackButton(
+                            label: labels.t('backToLogin'),
+                            onTap: () => _switchMode(_AuthMode.login),
+                          ),
+                        SizedBox(height: 14),
+                        _AuthTextField(
+                          controller: _emailController,
+                          label: labels.t('email'),
+                          icon: Icons.alternate_email,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                        ),
+                        AnimatedSize(
+                          duration: Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedSwitcher(
+                            duration: Duration(milliseconds: 180),
+                            child: isCodeMode
+                                ? Padding(
+                                    key: ValueKey('code-field'),
+                                    padding: EdgeInsets.only(top: 12),
+                                    child: _AuthTextField(
+                                      controller: _codeController,
+                                      label: labels.t('emailCode'),
+                                      icon: Icons.pin,
+                                      keyboardType: TextInputType.number,
+                                      textInputAction: TextInputAction.next,
+                                    ),
+                                  )
+                                : SizedBox.shrink(
+                                    key: ValueKey('no-code-field'),
+                                  ),
                           ),
                         ),
                         AnimatedSize(
@@ -623,67 +704,115 @@ class _AuthScreenState extends State<_AuthScreen> {
                           curve: Curves.easeOutCubic,
                           child: AnimatedSwitcher(
                             duration: Duration(milliseconds: 180),
-                            child:
-                                (isRegisterMode ||
-                                    _mode == _AuthMode.resetConfirm)
+                            child: isRegisterMode
                                 ? Padding(
-                                    key: ValueKey('confirm-field'),
+                                    key: ValueKey('name-field'),
                                     padding: EdgeInsets.only(top: 12),
                                     child: _AuthTextField(
-                                      controller: _confirmPasswordController,
-                                      label: labels.t('repeatPassword'),
-                                      icon: Icons.lock_reset,
-                                      obscureText: !_isConfirmPasswordVisible,
-                                      autofillHints: const [
-                                        AutofillHints.newPassword,
-                                      ],
-                                      textInputAction: TextInputAction.done,
-                                      onSubmitted: (_) =>
-                                          _isSubmitting ? null : _submit(),
-                                      suffix: _PasswordEyeButton(
-                                        isVisible: _isConfirmPasswordVisible,
-                                        onTap: () => setState(
-                                          () => _isConfirmPasswordVisible =
-                                              !_isConfirmPasswordVisible,
-                                        ),
-                                      ),
+                                      controller: _nameController,
+                                      label: labels.t('profileName'),
+                                      icon: Icons.person,
+                                      textCapitalization:
+                                          TextCapitalization.words,
+                                      autofillHints: const [AutofillHints.name],
                                     ),
                                   )
                                 : SizedBox.shrink(
-                                    key: ValueKey('no-confirm-field'),
+                                    key: ValueKey('no-name-field'),
                                   ),
                           ),
                         ),
-                      ],
-                      if (_mode == _AuthMode.login)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _isSubmitting
-                                ? null
-                                : () => _switchMode(_AuthMode.resetRequest),
-                            child: Text(labels.t('forgotPassword')),
+                        if (_mode != _AuthMode.resetRequest) ...[
+                          SizedBox(height: 12),
+                          _AuthTextField(
+                            controller: _passwordController,
+                            label: _mode == _AuthMode.resetConfirm
+                                ? labels.t('newPassword')
+                                : labels.t('password'),
+                            icon: Icons.lock,
+                            obscureText: !_isPasswordVisible,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction:
+                                isRegisterMode ||
+                                    _mode == _AuthMode.resetConfirm
+                                ? TextInputAction.next
+                                : TextInputAction.done,
+                            onSubmitted: (_) =>
+                                _isSubmitting ? null : _submit(),
+                            suffix: _PasswordEyeButton(
+                              isVisible: _isPasswordVisible,
+                              onTap: () => setState(
+                                () => _isPasswordVisible = !_isPasswordVisible,
+                              ),
+                            ),
                           ),
+                          AnimatedSize(
+                            duration: Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            child: AnimatedSwitcher(
+                              duration: Duration(milliseconds: 180),
+                              child:
+                                  (isRegisterMode ||
+                                      _mode == _AuthMode.resetConfirm)
+                                  ? Padding(
+                                      key: ValueKey('confirm-field'),
+                                      padding: EdgeInsets.only(top: 12),
+                                      child: _AuthTextField(
+                                        controller: _confirmPasswordController,
+                                        label: labels.t('repeatPassword'),
+                                        icon: Icons.lock_reset,
+                                        obscureText: !_isConfirmPasswordVisible,
+                                        autofillHints: const [
+                                          AutofillHints.newPassword,
+                                        ],
+                                        textInputAction: TextInputAction.done,
+                                        onSubmitted: (_) =>
+                                            _isSubmitting ? null : _submit(),
+                                        suffix: _PasswordEyeButton(
+                                          isVisible: _isConfirmPasswordVisible,
+                                          onTap: () => setState(
+                                            () => _isConfirmPasswordVisible =
+                                                !_isConfirmPasswordVisible,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : SizedBox.shrink(
+                                      key: ValueKey('no-confirm-field'),
+                                    ),
+                            ),
+                          ),
+                        ],
+                        if (_mode == _AuthMode.login)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => _switchMode(_AuthMode.resetRequest),
+                              child: Text(labels.t('forgotPassword')),
+                            ),
+                          ),
+                        SizedBox(height: 16),
+                        BouncyGymButton(
+                          height: 50,
+                          label: _isSubmitting
+                              ? labels.t('loading')
+                              : primaryLabel,
+                          icon: switch (_mode) {
+                            _AuthMode.login => Icons.login,
+                            _AuthMode.register => Icons.mark_email_unread,
+                            _AuthMode.verifyRegistration => Icons.verified,
+                            _AuthMode.resetRequest => Icons.mark_email_unread,
+                            _AuthMode.resetConfirm => Icons.lock_reset,
+                          },
+                          onTap: _isSubmitting ? null : _submit,
                         ),
-                      SizedBox(height: 16),
-                      BouncyGymButton(
-                        height: 50,
-                        label: _isSubmitting
-                            ? labels.t('loading')
-                            : primaryLabel,
-                        icon: switch (_mode) {
-                          _AuthMode.login => Icons.login,
-                          _AuthMode.register => Icons.mark_email_unread,
-                          _AuthMode.verifyRegistration => Icons.verified,
-                          _AuthMode.resetRequest => Icons.mark_email_unread,
-                          _AuthMode.resetConfirm => Icons.lock_reset,
-                        },
-                        onTap: _isSubmitting ? null : _submit,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

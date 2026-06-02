@@ -4,39 +4,40 @@
 ![Dart](https://img.shields.io/badge/Dart-App-111827?style=for-the-badge&logo=dart)
 ![NestJS](https://img.shields.io/badge/NestJS-API-111827?style=for-the-badge&logo=nestjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Backend-111827?style=for-the-badge&logo=typescript)
-![SQLite](https://img.shields.io/badge/SQLite-Local_DB-111827?style=for-the-badge&logo=sqlite)
-![Node.js](https://img.shields.io/badge/Node.js-Runtime-111827?style=for-the-badge&logo=nodedotjs)
+![SQLite](https://img.shields.io/badge/SQLite-Offline_DB-111827?style=for-the-badge&logo=sqlite)
+![JWT](https://img.shields.io/badge/JWT-Auth-111827?style=for-the-badge&logo=jsonwebtokens)
+![Playwright](https://img.shields.io/badge/Playwright-Visual_QA-111827?style=for-the-badge&logo=playwright)
 
-**GymEngine** is a fullstack, mobile-first strength training app built for fast workout logging, structured training plans, and clean progress analytics.
+**GymEngine** is a fullstack, mobile-first strength training app focused on fast workout logging, custom training plans, offline reliability, and progress analytics.
 
-The goal is simple: make a gym app that feels like a real product, not a spreadsheet. GymEngine focuses on fast data entry during training, offline-first reliability, account-based sync, and a dark industrial interface with a premium mobile experience.
+It is designed as a real product experience: dark industrial UI, Ukrainian / English localization, account authentication, local database persistence, server backup, exercise search with media, active workout tracking, rest timers, and progress insights.
 
 ---
 
 ## ✨ Features
 
-- **Authentication flow** with registration, login, email verification codes, and password reset codes.
-- **Offline-first workout tracking** using a local Drift/SQLite database.
-- **Custom training day builder** with up to 7 program days.
-- **Exercise planning** with target sets, target reps, muscle groups, and exercise notes.
-- **Active workout mode** for logging weight, reps, sets, and rest time.
-- **Rest timer notifications** on Android.
-- **Calendar analytics** with monthly navigation and training-day details.
-- **Exercise statistics** with minimum / maximum weight and reps.
-- **Localization** with Ukrainian as the default language and English as an optional UI language.
-- **Theme support** with dark and light mode.
-- **Server sync foundation** for account-based backup and restore.
-- **Mobile-first responsive UI** with animated interactions and Electric Lime visual branding.
+- **Authentication** with registration, login, email verification codes, and password reset codes.
+- **Offline-first workout data** stored locally with Drift + SQLite.
+- **Account-based backup / restore** through a NestJS API.
+- **Custom training plans** with up to 7 workout days.
+- **Exercise search catalog** with muscle filters, equipment tags, images, and technique video links.
+- **Custom exercises** with user-added photos.
+- **Active session mode** with set logging, planned exercise progress, workout timer, rest timer, and set undo.
+- **Smart session persistence** so an unfinished workout can be resumed instead of silently disappearing.
+- **Progress dashboard** with weekly/monthly stats, streaks, max weight, tracked exercises, and training calendar.
+- **Muscle focus analytics** showing which muscle sectors need more attention.
+- **Profile settings** with language switcher, dark/light theme, and training stats.
+- **Mobile-first responsive UI** optimized for phone use, with a centered app frame on desktop web.
 
 ---
 
 ## 🧠 Problem Solved
 
-Most fitness trackers are either too slow during a real workout or too visually noisy. GymEngine is designed around one core workflow:
+Most fitness apps become slow during a real workout: too many taps, too much visual noise, and weak history tracking. GymEngine solves that by keeping the main flow simple:
 
-> Open the app, start the planned day, log sets fast, rest, continue, and review progress later.
+> Build a training day → start the session → log sets fast → rest → continue → review progress later.
 
-The app keeps the training experience focused while still preserving enough data for meaningful analytics: what was trained, when it was trained, which weights were used, and how performance changes over time.
+The app is built around practical gym behavior: poor internet in a basement gym, quick weight/reps entry, planned sets and reps, exercise technique references, and progress that is easy to understand.
 
 ---
 
@@ -57,65 +58,63 @@ The app keeps the training experience focused while still preserving enough data
 - Node.js
 - NestJS
 - TypeScript
-- JWT-style token auth
-- Nodemailer / SMTP-ready email delivery
+- JWT-style token authentication
+- Email-code auth flow
+- File-backed development storage with PostgreSQL-ready architecture direction
 
-### Persistence
+### Quality
 
-- Local mobile database: **Drift + SQLite**
-- API development storage: local file-backed storage
-- Production-ready direction: PostgreSQL-ready architecture
+- Flutter analyzer
+- Flutter unit/widget tests
+- Jest backend tests
+- Playwright visual QA screenshots
+- Android release APK build
 
 ---
 
 ## 📸 Screenshots
 
-### Mobile Authentication
+### Authentication
 
-![Mobile authentication](screenshots/mobile-view.png)
+![Authentication](screenshots/qa/mobile-auth.png)
 
 ### Home / Training Plan
 
-![Home page](screenshots/home-page.png)
+![Home screen](screenshots/qa/mobile-home.png)
 
 ### Active Workout Session
 
-![Active session](screenshots/active-session.png)
+![Active workout session](screenshots/qa/mobile-active-session.png)
 
-### Set Logging + Rest Timer
+### Exercise Search
 
-![Set logging and rest timer](screenshots/set-logging.png)
+![Exercise search](screenshots/qa/mobile-search.png)
 
-### Edit Day + Add Exercises
+### Progress Overview
 
-![Edit day and add exercises](screenshots/edit-day.png)
+![Progress overview](screenshots/qa/mobile-progress-overview.png)
 
-### Analytics Dashboard
+### Muscle Focus Measurements
 
-![Analytics dashboard](screenshots/dashboard.png)
-
-### Exercise Stats Details
-
-![Exercise stats details](screenshots/analytics-details.png)
+![Muscle focus measurements](screenshots/qa/mobile-progress-measurements.png)
 
 ### Profile Settings
 
-![Profile settings](screenshots/profile.png)
+![Profile settings](screenshots/qa/mobile-profile.png)
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-gym-engine/
-│
+gymengine/
 ├── apps/
 │   └── mobile/
 │       ├── lib/
-│       │   ├── core/
-│       │   ├── data/
-│       │   ├── domain/
-│       │   └── presentation/
+│       │   ├── core/          # theme, localization, widgets, utilities
+│       │   ├── data/          # Drift database, repositories, sync client, catalog
+│       │   ├── domain/        # models and pure calculators
+│       │   └── presentation/  # Cubits, screens, UI widgets
 │       ├── android/
 │       ├── ios/
 │       └── pubspec.yaml
@@ -123,49 +122,39 @@ gym-engine/
 ├── services/
 │   └── api/
 │       ├── src/
-│       │   ├── auth/
-│       │   ├── sync/
-│       │   └── main.ts
+│       │   ├── auth/          # registration, verification, login, reset
+│       │   ├── domain/        # backend domain utilities
+│       │   └── sync/          # user snapshot backup / restore
 │       └── package.json
 │
 ├── screenshots/
-│   ├── mobile-view.png
-│   ├── home-page.png
-│   └── dashboard.png
-│
+│   └── qa/                    # Playwright-generated visual QA screenshots
+├── tools/
+│   └── visual-qa-gymengine.mjs
 ├── docs/
-├── infra/
 ├── README.md
-└── .gitignore
+└── package.json
 ```
 
 ---
 
 ## 🔐 Backend Functionality
 
-- Register user account.
-- Send email verification code.
-- Confirm account only after code verification.
+- Register a new user.
+- Send or expose local verification codes for development.
+- Verify email before account activation.
 - Login with email and password.
-- Request password reset code.
-- Confirm password reset with code and new password.
-- Upload authenticated sync snapshots.
-- Restore user data from the server.
+- Request and confirm password reset codes.
+- Store authenticated user sync snapshots.
+- Restore all user data by user ID after login.
 
-Email delivery is SMTP-ready through environment variables. Without SMTP credentials, the API writes development emails to a local outbox file for testing.
+For local development without SMTP credentials, the API exposes development codes so the flow can be tested without a real mailbox.
 
 ---
 
-## 🚀 Installation
+## 🚀 Local Development
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/sashik117/GymEngine.git
-cd GymEngine
-```
-
-### 2. Run the API
+### API
 
 ```bash
 cd services/api
@@ -174,13 +163,13 @@ npm run build
 npm run start
 ```
 
-Create a `.env` file from the example if you want real email delivery:
+Default local API:
 
-```bash
-cp .env.example .env
+```text
+http://127.0.0.1:3017/api
 ```
 
-### 3. Run the mobile app
+### Flutter App
 
 ```bash
 cd apps/mobile
@@ -188,10 +177,12 @@ flutter pub get
 flutter run
 ```
 
-For this workspace, a helper script is also available:
+### Web Preview
 
-```powershell
-.\tools\flutter.ps1 --version
+The local web preview is served on:
+
+```text
+http://127.0.0.1:5177
 ```
 
 ---
@@ -204,30 +195,55 @@ For this workspace, a helper script is also available:
 cd apps/mobile
 flutter analyze lib test
 flutter test
+flutter build web --release
+flutter build apk --release
 ```
 
-### API
+### Backend
 
 ```bash
 cd services/api
+npm test
 npm run build
+```
+
+### Visual QA
+
+```bash
+node tools/visual-qa-gymengine.mjs
+```
+
+The script creates a QA user, uploads realistic training data, opens the web app, and saves screenshots to:
+
+```text
+screenshots/qa/
+```
+
+---
+
+## 📦 Android APK
+
+Latest release APK path after build:
+
+```text
+apps/mobile/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ---
 
 ## 🌍 Live Demo
 
-Deployment is planned. Current testing is focused on local API + Android APK builds.
+Deployment is planned. Current validation is focused on local API, web preview, Android APK builds, and portfolio-ready screenshots.
 
 ---
 
-## 📌 Project Goals
+## 🎯 Project Goals
 
-- Build a real product-style fitness app for a developer portfolio.
-- Keep the UI mobile-first, clean, animated, and practical.
-- Demonstrate fullstack thinking: local database, backend auth, sync, and analytics.
-- Keep the repository structured like a production project.
-- Make the project visually strong enough to be featured on a GitHub profile.
+- Build a fullstack fitness product that looks and behaves like a real app.
+- Demonstrate clean Flutter architecture with local persistence and sync.
+- Show backend auth, verification, password reset, and user-scoped data restore.
+- Keep the UI mobile-first, visually strong, and practical for real gym use.
+- Make the repository strong enough for a junior/fullstack developer portfolio.
 
 ---
 

@@ -57,6 +57,15 @@ export type SyncSet = {
   syncStatus?: string;
 };
 
+export type SyncProgressPhoto = {
+  id: string;
+  imageDataUrl: string;
+  note?: string;
+  capturedAt: string;
+  createdAt: string;
+  syncStatus?: string;
+};
+
 export type SyncSnapshot = {
   schemaVersion?: number;
   exportedAt?: string;
@@ -70,4 +79,5 @@ export type SyncSnapshot = {
   plannedExercises: SyncPlannedExercise[];
   sessions: SyncSession[];
   sets: SyncSet[];
+  progressPhotos?: SyncProgressPhoto[];
 };

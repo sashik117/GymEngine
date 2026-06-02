@@ -17,8 +17,10 @@ object RestNotificationScheduler {
     const val permissionRequestCode = 4180
     private const val notificationChannelId = "gym_engine_rest_timer"
     private const val notificationId = 4181
+    private const val ongoingNotificationId = 4184
     private const val alarmRequestCode = 4182
     private const val launchRequestCode = 4183
+    private const val ongoingLaunchRequestCode = 4185
     private const val extraTitle = "title"
     private const val extraBody = "body"
 
@@ -81,6 +83,7 @@ object RestNotificationScheduler {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
         }
+        notificationManager(context).cancel(notificationId)
     }
 
     fun show(context: Context, title: String, body: String) {
@@ -124,6 +127,53 @@ object RestNotificationScheduler {
             .build()
 
         notificationManager(context).notify(notificationId, notification)
+    }
+
+    fun showOngoing(context: Context, title: String, body: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        createChannel(context)
+
+        val launchIntent = context.packageManager
+            .getLaunchIntentForPackage(context.packageName)
+            ?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        val contentIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                context,
+                ongoingLaunchRequestCode,
+                it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, notificationChannelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+
+        val notification = builder
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(contentIntent)
+            .build()
+
+        notificationManager(context).notify(ongoingNotificationId, notification)
+    }
+
+    fun cancelOngoing(context: Context) {
+        notificationManager(context).cancel(ongoingNotificationId)
     }
 
     private fun notificationManager(context: Context): NotificationManager {

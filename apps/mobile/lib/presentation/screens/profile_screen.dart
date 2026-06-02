@@ -138,6 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<ThemeCubit>();
     final labels = context.watch<LocaleCubit>().labels;
 
     return SafeArea(
@@ -272,32 +273,113 @@ class _ProfileControls extends StatelessWidget {
 
     return GymPanel(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            labels.t('settings'),
-            style: TextStyle(
-              color: AppColors.lime,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0,
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              labels.t('settings'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.lime,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
             ),
           ),
           SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: GymLanguageToggle()),
-              SizedBox(width: 10),
-              Expanded(
-                child: _ThemeSwitchButton(
-                  isLight: isLight,
-                  onTap: () => context.read<ThemeCubit>().toggle(),
-                  labels: labels,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isTight = constraints.maxWidth < 330;
+              final cards = [
+                _SettingsControlChip(
+                  icon: Icons.language,
+                  label: labels.language == GymLanguage.uk
+                      ? 'Мова'
+                      : 'Language',
+                  child: GymLanguageToggle(compact: true),
                 ),
-              ),
-            ],
+                _SettingsControlChip(
+                  icon: isLight ? Icons.light_mode : Icons.dark_mode,
+                  label: labels.language == GymLanguage.uk ? 'Тема' : 'Theme',
+                  child: _ThemeSwitchButton(
+                    isLight: isLight,
+                    onTap: () => context.read<ThemeCubit>().toggle(),
+                    labels: labels,
+                    compact: true,
+                  ),
+                ),
+              ];
+
+              if (isTight) {
+                return Column(
+                  children: [
+                    for (final card in cards) ...[
+                      SizedBox(width: double.infinity, child: card),
+                      if (card != cards.last) SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  for (final card in cards) ...[
+                    Expanded(child: card),
+                    if (card != cards.last) SizedBox(width: 10),
+                  ],
+                ],
+              );
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsControlChip extends StatelessWidget {
+  const _SettingsControlChip({
+    required this.icon,
+    required this.label,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.lime, size: 18),
+            SizedBox(height: 7),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            SizedBox(height: 9),
+            Center(child: child),
+          ],
+        ),
       ),
     );
   }
@@ -308,11 +390,13 @@ class _ThemeSwitchButton extends StatelessWidget {
     required this.isLight,
     required this.onTap,
     required this.labels,
+    this.compact = false,
   });
 
   final bool isLight;
   final VoidCallback onTap;
   final GymLabels labels;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -321,12 +405,15 @@ class _ThemeSwitchButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 180),
-        height: 42,
-        padding: EdgeInsets.symmetric(horizontal: 10),
+        width: compact ? 92 : null,
+        height: compact ? 36 : 42,
+        padding: EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: isLight ? AppColors.lime : AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isLight ? AppColors.lime : AppColors.border,
+          ),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -336,10 +423,12 @@ class _ThemeSwitchButton extends StatelessWidget {
               color: isLight ? AppColors.ink : AppColors.lime,
               size: 18,
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 6),
             Flexible(
               child: Text(
-                isLight ? labels.t('lightTheme') : labels.t('darkTheme'),
+                isLight
+                    ? (labels.language == GymLanguage.uk ? 'Світла' : 'Light')
+                    : (labels.language == GymLanguage.uk ? 'Темна' : 'Dark'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -436,6 +525,36 @@ class _ProfileHero extends StatelessWidget {
               ),
             ],
           ),
+          SizedBox(height: 14),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.lime.withValues(alpha: 0.32)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.verified_user_outlined, color: AppColors.lime),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      labels.language == GymLanguage.uk
+                          ? 'Профіль тримає твої тренування, налаштування і прогрес.'
+                          : 'Profile keeps your training, settings, and progress together.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -464,29 +583,52 @@ class _ProfileStats extends StatelessWidget {
             ),
           ),
           SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ProfileStatPill(
-                  label: labels.t('trained'),
-                  value: '${snapshot.trainingDates.length}',
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: _ProfileStatPill(
-                  label: labels.t('liftsTracked'),
-                  value: '${snapshot.exerciseStats.length}',
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: _ProfileStatPill(
-                  label: labels.t('bestWeight'),
-                  value: formatKg(snapshot.heaviestSetKg, unit: labels.t('kg')),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: itemWidth,
+                    child: _ProfileStatPill(
+                      icon: Icons.calendar_month,
+                      label: labels.t('trained'),
+                      value: '${snapshot.trainingDates.length}',
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _ProfileStatPill(
+                      icon: Icons.fitness_center,
+                      label: labels.t('liftsTracked'),
+                      value: '${snapshot.exerciseStats.length}',
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _ProfileStatPill(
+                      icon: Icons.monitor_weight_outlined,
+                      label: labels.t('bestWeight'),
+                      value: formatKg(
+                        snapshot.heaviestSetKg,
+                        unit: labels.t('kg'),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: itemWidth,
+                    child: _ProfileStatPill(
+                      icon: Icons.local_fire_department_outlined,
+                      label: labels.t('streak'),
+                      value:
+                          '${snapshot.currentStreakDays} ${labels.t('days')}',
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -495,8 +637,13 @@ class _ProfileStats extends StatelessWidget {
 }
 
 class _ProfileStatPill extends StatelessWidget {
-  const _ProfileStatPill({required this.label, required this.value});
+  const _ProfileStatPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
+  final IconData icon;
   final String label;
   final String value;
 
@@ -513,6 +660,8 @@ class _ProfileStatPill extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Icon(icon, color: AppColors.lime, size: 18),
+            SizedBox(height: 8),
             Text(
               label,
               maxLines: 2,

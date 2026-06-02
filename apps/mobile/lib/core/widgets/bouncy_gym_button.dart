@@ -9,8 +9,8 @@ class BouncyGymButton extends StatefulWidget {
     this.icon,
     this.height = 60,
     this.isOutlined = false,
-    this.backgroundColor = AppColors.lime,
-    this.foregroundColor = AppColors.ink,
+    this.backgroundColor,
+    this.foregroundColor,
     super.key,
   });
 
@@ -19,8 +19,8 @@ class BouncyGymButton extends StatefulWidget {
   final IconData? icon;
   final double height;
   final bool isOutlined;
-  final Color backgroundColor;
-  final Color foregroundColor;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   @override
   State<BouncyGymButton> createState() => _BouncyGymButtonState();
@@ -64,13 +64,15 @@ class _BouncyGymButtonState extends State<BouncyGymButton>
 
   @override
   Widget build(BuildContext context) {
+    final accent = widget.backgroundColor ?? AppColors.lime;
+    final onAccent = widget.foregroundColor ?? AppColors.ink;
     final background = widget.isOutlined
         ? Colors.transparent
-        : (_isEnabled ? widget.backgroundColor : AppColors.surface);
+        : (_isEnabled ? accent : AppColors.surface);
     final foreground = _isEnabled
-        ? (widget.isOutlined ? widget.backgroundColor : widget.foregroundColor)
+        ? (widget.isOutlined ? accent : onAccent)
         : AppColors.muted;
-    final borderColor = _isEnabled ? widget.backgroundColor : AppColors.border;
+    final borderColor = _isEnabled ? accent : AppColors.border;
 
     return Semantics(
       button: true,
@@ -95,7 +97,7 @@ class _BouncyGymButtonState extends State<BouncyGymButton>
               boxShadow: _isEnabled && !widget.isOutlined
                   ? [
                       BoxShadow(
-                        color: widget.backgroundColor.withValues(alpha: 0.28),
+                        color: accent.withValues(alpha: 0.28),
                         blurRadius: 18,
                         spreadRadius: -6,
                         offset: Offset(0, 8),

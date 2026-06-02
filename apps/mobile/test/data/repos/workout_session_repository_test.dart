@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gym_engine/data/local/app_database.dart' hide UserProfile;
@@ -7,6 +8,10 @@ import 'package:gym_engine/domain/models/user_profile.dart';
 import 'package:gym_engine/domain/models/workout_set.dart';
 
 void main() {
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
   test('persists a workout session with sets', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
@@ -16,6 +21,30 @@ void main() {
 
     expect(exercises.map((exercise) => exercise.name), contains('Bench Press'));
     expect(exercises.map((exercise) => exercise.name), contains('Squat'));
+
+    final calfExercises = exercises
+        .where((exercise) => exercise.primaryMuscle == 'Calves')
+        .toList();
+    expect(calfExercises, isNotEmpty);
+    for (final exercise in calfExercises) {
+      final imageUrl = exercise.imageUrl.toLowerCase();
+      expect(imageUrl, isNot(contains('_chest')));
+      expect(imageUrl, isNot(contains('_back')));
+      expect(imageUrl, isNot(contains('_shoulders')));
+      expect(imageUrl, isNot(contains('_upper-arms')));
+      expect(imageUrl, isNot(contains('_waist')));
+    }
+    final wristCurl = exercises.firstWhere(
+      (exercise) => exercise.id == 'barbell_standing_back_wrist_curl',
+    );
+    expect(wristCurl.primaryMuscle, 'Forearms');
+    expect(wristCurl.imageUrl.toLowerCase(), contains('forearms'));
+
+    final neckStretch = exercises.firstWhere(
+      (exercise) => exercise.id == 'front_and_back_neck_stretch',
+    );
+    expect(neckStretch.primaryMuscle, 'Neck');
+    expect(neckStretch.imageUrl.toLowerCase(), contains('neck'));
 
     await repository.saveTrainingDayPlan(
       dayNumber: 1,
@@ -135,6 +164,8 @@ void main() {
     expect(analytics.exerciseStats.first.maxWeightKg, 60);
     expect(analytics.exerciseStats.first.minReps, 8);
     expect(analytics.exerciseStats.first.maxReps, 8);
+    expect(analytics.exerciseStats.first.primaryMuscle, 'Chest');
+    expect(analytics.exerciseStats.first.totalVolumeKg, 480);
     expect(analytics.trainingDates.single, DateTime(2026, 5, 15));
     expect(analytics.trainingDays.single.date, DateTime(2026, 5, 15));
     expect(analytics.trainingDays.single.templateName, 'День Ніг');
@@ -142,6 +173,11 @@ void main() {
     expect(analytics.trainingDays.single.exercises.first.exerciseName, 'Squat');
     expect(analytics.trainingDays.single.exercises.first.minReps, 5);
     expect(analytics.trainingDays.single.exercises.first.maxReps, 5);
+    expect(
+      analytics.trainingDays.single.exercises.first.primaryMuscle,
+      'Quads',
+    );
+    expect(analytics.trainingDays.single.exercises.first.totalVolumeKg, 500);
     expect(
       analytics.trainingDays.single.exercises.last.exerciseName,
       'Bench Press',
@@ -171,6 +207,15 @@ void main() {
     expect(profile.displayName, 'Аня');
     expect(profile.bodyWeightKg, 62.5);
 
+    final progressPhoto = await repository.addProgressPhoto(
+      imageDataUrl: 'data:image/png;base64,AA==',
+      capturedAt: DateTime(2026, 5, 16, 9),
+    );
+    final progressPhotos = await repository.loadProgressPhotos();
+    expect(progressPhotos, hasLength(1));
+    expect(progressPhotos.single.id, progressPhoto.id);
+    expect(progressPhotos.single.capturedAt, DateTime(2026, 5, 16, 9));
+
     final syncProfile = profile.copyWith(
       syncCode: repository.createSyncCode(),
       syncBaseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
@@ -178,6 +223,7 @@ void main() {
     final syncSnapshot = await repository.exportSyncSnapshot(
       profile: syncProfile,
     );
+    expect(syncSnapshot['progressPhotos'], isA<List<Object?>>());
     final restoredDatabase = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(restoredDatabase.close);
     final restoredRepository = WorkoutSessionRepository(restoredDatabase);
@@ -197,6 +243,7 @@ void main() {
     expect(restoredProfile.syncCode, syncProfile.syncCode);
     expect(restoredAnalytics.totalSets, 2);
     expect(restoredAnalytics.trainingDays.single.templateDayNumber, 1);
+    expect(await restoredRepository.loadProgressPhotos(), hasLength(1));
 
     final plansBeforeDelete = await repository.loadTrainingDayPlans();
     expect(

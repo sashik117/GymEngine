@@ -2,18 +2,26 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/models/analytics_snapshot.dart';
 import '../../domain/models/dashboard_snapshot.dart';
 import '../../domain/models/exercise.dart';
 import '../../domain/models/exercise_history.dart';
+import '../../domain/models/progress_photo.dart';
 import '../../domain/models/training_day_plan.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/workout_set.dart';
 import '../../domain/models/workout_session_draft.dart';
+import '../catalog/lyfta_exercise_catalog.dart';
 import '../local/app_database.dart' hide Exercise, UserProfile;
 import '../sync/sync_api_client.dart';
+import '../../domain/calculators/exercise_history_calculator.dart';
+import '../../domain/calculators/exercise_muscle_classifier.dart';
+import '../../domain/calculators/training_calendar.dart';
+import '../../domain/calculators/training_plan_scheduler.dart';
+import '../../domain/calculators/workout_analytics_calculator.dart';
 
 class WorkoutSessionRepository {
   WorkoutSessionRepository(this._db, {Uuid? uuid})
@@ -22,35 +30,194 @@ class WorkoutSessionRepository {
   final AppDatabase _db;
   final Uuid _uuid;
   var _isAutoSyncing = false;
+  var _didEnsureDefaultExercises = false;
 
-  static const _defaultExercises = [
+  static final _defaultExercises = [
     Exercise(id: 'bench_press', name: 'Bench Press', primaryMuscle: 'Chest'),
+    Exercise(
+      id: 'barbell_bench_press',
+      name: 'Barbell Bench Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'dumbbell_bench_press',
+      name: 'Dumbbell Bench Press',
+      primaryMuscle: 'Chest',
+    ),
     Exercise(
       id: 'incline_press',
       name: 'Incline Press',
       primaryMuscle: 'Chest',
     ),
+    Exercise(
+      id: 'incline_bench_press',
+      name: 'Incline Bench Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'dumbbell_incline_bench_press',
+      name: 'Dumbbell Incline Bench Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'decline_bench_press',
+      name: 'Decline Bench Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(id: 'chest_dip', name: 'Chest Dip', primaryMuscle: 'Chest'),
+    Exercise(id: 'push_up', name: 'Push-Up', primaryMuscle: 'Chest'),
+    Exercise(
+      id: 'decline_push_up',
+      name: 'Decline Push-Up',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'lever_chest_press',
+      name: 'Lever Chest Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(id: 'pec_deck_fly', name: 'Pec Deck Fly', primaryMuscle: 'Chest'),
     Exercise(id: 'dumbbell_fly', name: 'Dumbbell Fly', primaryMuscle: 'Chest'),
+    Exercise(id: 'cable_fly', name: 'Cable Fly', primaryMuscle: 'Chest'),
+    Exercise(
+      id: 'cable_middle_fly',
+      name: 'Cable Middle Fly',
+      primaryMuscle: 'Chest',
+    ),
     Exercise(id: 'squat', name: 'Squat', primaryMuscle: 'Quads'),
+    Exercise(id: 'front_squat', name: 'Front Squat', primaryMuscle: 'Quads'),
+    Exercise(id: 'goblet_squat', name: 'Goblet Squat', primaryMuscle: 'Quads'),
+    Exercise(id: 'smith_squat', name: 'Smith Squat', primaryMuscle: 'Quads'),
+    Exercise(id: 'hack_squat', name: 'Hack Squat', primaryMuscle: 'Quads'),
+    Exercise(
+      id: 'bulgarian_split_squat',
+      name: 'Bulgarian Split Squat',
+      primaryMuscle: 'Quads',
+    ),
+    Exercise(
+      id: 'walking_lunge',
+      name: 'Walking Lunge',
+      primaryMuscle: 'Quads',
+    ),
     Exercise(id: 'leg_press', name: 'Leg Press', primaryMuscle: 'Quads'),
+    Exercise(
+      id: 'sled_45_leg_press',
+      name: '45 Degree Leg Press',
+      primaryMuscle: 'Quads',
+    ),
     Exercise(id: 'lunge', name: 'Lunge', primaryMuscle: 'Quads'),
     Exercise(
       id: 'leg_extension',
       name: 'Leg Extension',
       primaryMuscle: 'Quads',
     ),
+    Exercise(
+      id: 'lever_leg_extension',
+      name: 'Lever Leg Extension',
+      primaryMuscle: 'Quads',
+    ),
     Exercise(id: 'deadlift', name: 'Deadlift', primaryMuscle: 'Posterior'),
+    Exercise(
+      id: 'straight_leg_deadlift',
+      name: 'Straight Leg Deadlift',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'sumo_deadlift',
+      name: 'Sumo Deadlift',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'good_morning',
+      name: 'Good Morning',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'back_extension',
+      name: 'Back Extension',
+      primaryMuscle: 'Posterior',
+    ),
     Exercise(
       id: 'romanian_deadlift',
       name: 'Romanian Deadlift',
       primaryMuscle: 'Posterior',
     ),
     Exercise(id: 'hip_thrust', name: 'Hip Thrust', primaryMuscle: 'Glutes'),
+    Exercise(
+      id: 'single_leg_hip_thrust',
+      name: 'Single Leg Hip Thrust',
+      primaryMuscle: 'Glutes',
+    ),
     Exercise(id: 'glute_bridge', name: 'Glute Bridge', primaryMuscle: 'Glutes'),
+    Exercise(
+      id: 'cable_kickback',
+      name: 'Cable Kickback',
+      primaryMuscle: 'Glutes',
+    ),
+    Exercise(
+      id: 'hip_abduction',
+      name: 'Hip Abduction',
+      primaryMuscle: 'Glutes',
+    ),
+    Exercise(
+      id: 'lever_hip_abduction',
+      name: 'Lever Hip Abduction',
+      primaryMuscle: 'Glutes',
+    ),
     Exercise(id: 'leg_curl', name: 'Leg Curl', primaryMuscle: 'Hamstrings'),
+    Exercise(
+      id: 'lying_leg_curl',
+      name: 'Lying Leg Curl',
+      primaryMuscle: 'Hamstrings',
+    ),
+    Exercise(
+      id: 'seated_leg_curl',
+      name: 'Seated Leg Curl',
+      primaryMuscle: 'Hamstrings',
+    ),
+    Exercise(
+      id: 'nordic_curl',
+      name: 'Nordic Curl',
+      primaryMuscle: 'Hamstrings',
+    ),
+    Exercise(
+      id: 'standing_calf_raise',
+      name: 'Standing Calf Raise',
+      primaryMuscle: 'Calves',
+    ),
+    Exercise(
+      id: 'seated_calf_raise',
+      name: 'Seated Calf Raise',
+      primaryMuscle: 'Calves',
+    ),
+    Exercise(
+      id: 'smith_calf_raise',
+      name: 'Smith Calf Raise',
+      primaryMuscle: 'Calves',
+    ),
     Exercise(
       id: 'overhead_press',
       name: 'Overhead Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'military_press',
+      name: 'Military Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'seated_shoulder_press',
+      name: 'Seated Shoulder Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'dumbbell_shoulder_press',
+      name: 'Dumbbell Shoulder Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'arnold_press',
+      name: 'Arnold Press',
       primaryMuscle: 'Shoulders',
     ),
     Exercise(
@@ -59,19 +226,86 @@ class WorkoutSessionRepository {
       primaryMuscle: 'Shoulders',
     ),
     Exercise(
+      id: 'seated_lateral_raise',
+      name: 'Seated Lateral Raise',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'front_raise',
+      name: 'Front Raise',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
       id: 'rear_delt_fly',
       name: 'Rear Delt Fly',
       primaryMuscle: 'Shoulders',
     ),
+    Exercise(id: 'face_pull', name: 'Face Pull', primaryMuscle: 'Shoulders'),
+    Exercise(
+      id: 'upright_row',
+      name: 'Upright Row',
+      primaryMuscle: 'Shoulders',
+    ),
     Exercise(id: 'barbell_row', name: 'Barbell Row', primaryMuscle: 'Back'),
+    Exercise(id: 'bent_over_row', name: 'Bent Over Row', primaryMuscle: 'Back'),
+    Exercise(id: 'one_arm_row', name: 'One Arm Row', primaryMuscle: 'Back'),
+    Exercise(id: 't_bar_row', name: 'T-Bar Row', primaryMuscle: 'Back'),
     Exercise(id: 'pull_up', name: 'Pull-Up', primaryMuscle: 'Back'),
+    Exercise(id: 'chin_up', name: 'Chin-Up', primaryMuscle: 'Back'),
     Exercise(id: 'lat_pulldown', name: 'Lat Pulldown', primaryMuscle: 'Back'),
+    Exercise(
+      id: 'v_bar_pulldown',
+      name: 'V-Bar Pulldown',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(
+      id: 'straight_arm_pulldown',
+      name: 'Straight Arm Pulldown',
+      primaryMuscle: 'Back',
+    ),
     Exercise(id: 'seated_row', name: 'Seated Row', primaryMuscle: 'Back'),
+    Exercise(
+      id: 'low_seated_row',
+      name: 'Low Seated Row',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(id: 'shrug', name: 'Shrug', primaryMuscle: 'Back'),
+    Exercise(
+      id: 'dumbbell_shrug',
+      name: 'Dumbbell Shrug',
+      primaryMuscle: 'Back',
+    ),
     Exercise(id: 'biceps_curl', name: 'Biceps Curl', primaryMuscle: 'Biceps'),
+    Exercise(id: 'barbell_curl', name: 'Barbell Curl', primaryMuscle: 'Biceps'),
     Exercise(id: 'hammer_curl', name: 'Hammer Curl', primaryMuscle: 'Biceps'),
+    Exercise(
+      id: 'preacher_curl',
+      name: 'Preacher Curl',
+      primaryMuscle: 'Biceps',
+    ),
+    Exercise(
+      id: 'incline_dumbbell_curl',
+      name: 'Incline Dumbbell Curl',
+      primaryMuscle: 'Biceps',
+    ),
+    Exercise(
+      id: 'cable_biceps_curl',
+      name: 'Cable Biceps Curl',
+      primaryMuscle: 'Biceps',
+    ),
+    Exercise(
+      id: 'concentration_curl',
+      name: 'Concentration Curl',
+      primaryMuscle: 'Biceps',
+    ),
     Exercise(
       id: 'triceps_pushdown',
       name: 'Triceps Pushdown',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(
+      id: 'rope_pushdown',
+      name: 'Rope Pushdown',
       primaryMuscle: 'Triceps',
     ),
     Exercise(
@@ -79,12 +313,430 @@ class WorkoutSessionRepository {
       name: 'Skull Crusher',
       primaryMuscle: 'Triceps',
     ),
+    Exercise(
+      id: 'overhead_triceps_extension',
+      name: 'Overhead Triceps Extension',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(
+      id: 'close_grip_push_up',
+      name: 'Close-Grip Push-Up',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(id: 'triceps_dip', name: 'Triceps Dip', primaryMuscle: 'Triceps'),
+    Exercise(
+      id: 'weighted_triceps_dip',
+      name: 'Weighted Triceps Dip',
+      primaryMuscle: 'Triceps',
+    ),
     Exercise(id: 'plank', name: 'Plank', primaryMuscle: 'Core'),
+    Exercise(id: 'front_plank', name: 'Front Plank', primaryMuscle: 'Core'),
+    Exercise(id: 'side_plank', name: 'Side Plank', primaryMuscle: 'Core'),
+    Exercise(id: 'crunch', name: 'Crunch', primaryMuscle: 'Core'),
+    Exercise(id: 'sit_up', name: 'Sit-Up', primaryMuscle: 'Core'),
     Exercise(id: 'cable_crunch', name: 'Cable Crunch', primaryMuscle: 'Core'),
+    Exercise(id: 'russian_twist', name: 'Russian Twist', primaryMuscle: 'Core'),
+    Exercise(
+      id: 'bicycle_crunch',
+      name: 'Bicycle Crunch',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(
+      id: 'hanging_leg_raise',
+      name: 'Hanging Leg Raise',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(id: 'wrist_curl', name: 'Wrist Curl', primaryMuscle: 'Forearms'),
+    Exercise(
+      id: 'reverse_wrist_curl',
+      name: 'Reverse Wrist Curl',
+      primaryMuscle: 'Forearms',
+    ),
+    Exercise(
+      id: 'smith_bench_press',
+      name: 'Smith Bench Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'close_grip_bench_press',
+      name: 'Close-Grip Bench Press',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(
+      id: 'incline_dumbbell_fly',
+      name: 'Incline Dumbbell Fly',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'decline_dumbbell_press',
+      name: 'Decline Dumbbell Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'machine_chest_press',
+      name: 'Machine Chest Press',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'cable_low_fly',
+      name: 'Cable Low Fly',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'cable_high_fly',
+      name: 'Cable High Fly',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(
+      id: 'dumbbell_pullover',
+      name: 'Dumbbell Pullover',
+      primaryMuscle: 'Chest',
+    ),
+    Exercise(id: 'step_up', name: 'Step-Up', primaryMuscle: 'Quads'),
+    Exercise(
+      id: 'reverse_lunge',
+      name: 'Reverse Lunge',
+      primaryMuscle: 'Quads',
+    ),
+    Exercise(id: 'smith_lunge', name: 'Smith Lunge', primaryMuscle: 'Quads'),
+    Exercise(id: 'sissy_squat', name: 'Sissy Squat', primaryMuscle: 'Quads'),
+    Exercise(id: 'wall_sit', name: 'Wall Sit', primaryMuscle: 'Quads'),
+    Exercise(
+      id: 'hip_adduction',
+      name: 'Hip Adduction',
+      primaryMuscle: 'Glutes',
+    ),
+    Exercise(
+      id: 'cable_abduction',
+      name: 'Cable Hip Abduction',
+      primaryMuscle: 'Glutes',
+    ),
+    Exercise(id: 'frog_pump', name: 'Frog Pump', primaryMuscle: 'Glutes'),
+    Exercise(
+      id: 'glute_ham_raise',
+      name: 'Glute Ham Raise',
+      primaryMuscle: 'Hamstrings',
+    ),
+    Exercise(
+      id: 'single_leg_rdl',
+      name: 'Single Leg Romanian Deadlift',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'stiff_leg_deadlift',
+      name: 'Stiff Leg Deadlift',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'kettlebell_swing',
+      name: 'Kettlebell Swing',
+      primaryMuscle: 'Posterior',
+    ),
+    Exercise(
+      id: 'donkey_calf_raise',
+      name: 'Donkey Calf Raise',
+      primaryMuscle: 'Calves',
+    ),
+    Exercise(id: 'calf_press', name: 'Calf Press', primaryMuscle: 'Calves'),
+    Exercise(
+      id: 'wide_grip_lat_pulldown',
+      name: 'Wide Grip Lat Pulldown',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(
+      id: 'reverse_grip_pulldown',
+      name: 'Reverse Grip Pulldown',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(id: 'cable_row', name: 'Cable Row', primaryMuscle: 'Back'),
+    Exercise(id: 'machine_row', name: 'Machine Row', primaryMuscle: 'Back'),
+    Exercise(
+      id: 'chest_supported_row',
+      name: 'Chest Supported Row',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(id: 'inverted_row', name: 'Inverted Row', primaryMuscle: 'Back'),
+    Exercise(id: 'rack_pull', name: 'Rack Pull', primaryMuscle: 'Back'),
+    Exercise(
+      id: 'assisted_pull_up',
+      name: 'Assisted Pull-Up',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(
+      id: 'single_arm_pulldown',
+      name: 'Single Arm Pulldown',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(
+      id: 'machine_pullover',
+      name: 'Machine Pullover',
+      primaryMuscle: 'Back',
+    ),
+    Exercise(
+      id: 'cable_lateral_raise',
+      name: 'Cable Lateral Raise',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'machine_lateral_raise',
+      name: 'Machine Lateral Raise',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'bent_over_lateral_raise',
+      name: 'Bent Over Lateral Raise',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'reverse_pec_deck',
+      name: 'Reverse Pec Deck',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'cable_rear_delt_fly',
+      name: 'Cable Rear Delt Fly',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'machine_shoulder_press',
+      name: 'Machine Shoulder Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(
+      id: 'landmine_press',
+      name: 'Landmine Press',
+      primaryMuscle: 'Shoulders',
+    ),
+    Exercise(id: 'y_raise', name: 'Y Raise', primaryMuscle: 'Shoulders'),
+    Exercise(id: 'ez_bar_curl', name: 'EZ-Bar Curl', primaryMuscle: 'Biceps'),
+    Exercise(id: 'spider_curl', name: 'Spider Curl', primaryMuscle: 'Biceps'),
+    Exercise(
+      id: 'cable_hammer_curl',
+      name: 'Cable Hammer Curl',
+      primaryMuscle: 'Biceps',
+    ),
+    Exercise(id: 'reverse_curl', name: 'Reverse Curl', primaryMuscle: 'Biceps'),
+    Exercise(id: 'zottman_curl', name: 'Zottman Curl', primaryMuscle: 'Biceps'),
+    Exercise(id: 'drag_curl', name: 'Drag Curl', primaryMuscle: 'Biceps'),
+    Exercise(
+      id: 'machine_preacher_curl',
+      name: 'Machine Preacher Curl',
+      primaryMuscle: 'Biceps',
+    ),
+    Exercise(
+      id: 'cable_overhead_extension',
+      name: 'Cable Overhead Triceps Extension',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(
+      id: 'dumbbell_triceps_extension',
+      name: 'Dumbbell Triceps Extension',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(id: 'bench_dip', name: 'Bench Dip', primaryMuscle: 'Triceps'),
+    Exercise(
+      id: 'triceps_kickback',
+      name: 'Triceps Kickback',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(
+      id: 'machine_triceps_extension',
+      name: 'Machine Triceps Extension',
+      primaryMuscle: 'Triceps',
+    ),
+    Exercise(id: 'ab_wheel', name: 'Ab Wheel', primaryMuscle: 'Core'),
+    Exercise(
+      id: 'reverse_crunch',
+      name: 'Reverse Crunch',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(id: 'dead_bug', name: 'Dead Bug', primaryMuscle: 'Core'),
+    Exercise(
+      id: 'mountain_climber',
+      name: 'Mountain Climber',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(
+      id: 'hanging_knee_raise',
+      name: 'Hanging Knee Raise',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(
+      id: 'decline_sit_up',
+      name: 'Decline Sit-Up',
+      primaryMuscle: 'Core',
+    ),
+    Exercise(id: 'pallof_press', name: 'Pallof Press', primaryMuscle: 'Core'),
+    Exercise(id: 'wood_chop', name: 'Wood Chop', primaryMuscle: 'Core'),
+    Exercise(
+      id: 'farmer_carry',
+      name: 'Farmer Carry',
+      primaryMuscle: 'Forearms',
+    ),
+    Exercise(id: 'hollow_hold', name: 'Hollow Hold', primaryMuscle: 'Core'),
+    Exercise(id: 'neck_flexion', name: 'Neck Flexion', primaryMuscle: 'Neck'),
+    for (final seed in lyftaExerciseCatalog) _exerciseFromLyftaSeed(seed),
   ];
 
-  static const defaultSyncBaseUrl = 'http://192.168.1.104:3000/api';
+  static String get defaultSyncBaseUrl =>
+      kIsWeb ? 'http://127.0.0.1:3017/api' : 'http://192.168.1.104:3017/api';
   static const _syncChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  static const _manualCatalogAliases = {
+    'bench_press': 'Barbell Bench Press',
+    'incline_press': 'Barbell Incline Bench Press',
+    'dumbbell_fly': 'Dumbbell Fly',
+    'squat': 'Barbell Squat',
+    'front_squat': 'Barbell Front Squat',
+    'leg_press': 'Sled 45° Leg Press',
+    'sled_45_leg_press': 'Sled 45° Leg Press',
+    'leg_extension': 'Lever Leg Extension',
+    'deadlift': 'Barbell Deadlift',
+    'romanian_deadlift': 'Barbell Romanian Deadlift',
+    'hip_thrust': 'Barbell Hip Thrust',
+    'glute_bridge': 'Barbell Glute Bridge',
+    'leg_curl': 'Lever Lying Leg Curl',
+    'overhead_press': 'Barbell Standing Overhead Press',
+    'lateral_raise': 'Dumbbell Lateral Raise',
+    'rear_delt_fly': 'Dumbbell Rear Lateral Raise',
+    'barbell_row': 'Barbell Bent Over Row',
+    'one_arm_row': 'One Arm Row',
+    'pull_up': 'Pull-Up',
+    'lat_pulldown': 'Cable Lat Pulldown Full Range Of Motion',
+    'seated_row': 'Cable Seated Row',
+    'biceps_curl': 'Dumbbell Biceps Curl',
+    'hammer_curl': 'Dumbbell Hammer Curl',
+    'triceps_pushdown': 'Cable Triceps Pushdown',
+    'skull_crusher': 'EZ Bar California Skullcrusher',
+    'plank': 'Front Plank',
+    'cable_crunch': 'Cable Kneeling Crunch',
+  };
+  static final _catalogMediaById = _buildCatalogMediaById();
+  static final _catalogMediaByName = _buildCatalogMediaByName();
+
+  static Exercise _exerciseFromLyftaSeed(LyftaExerciseSeed seed) {
+    final primaryMuscle = _catalogPrimaryMuscle(
+      name: seed.name,
+      rawMuscle: seed.primaryMuscle,
+      bodyPart: seed.bodyPart,
+      imageUrl: seed.imageUrl,
+    );
+    return Exercise(
+      id: seed.id,
+      name: _capitalizeWords(seed.name),
+      primaryMuscle: primaryMuscle,
+      bodyPart: seed.bodyPart,
+      equipment: seed.equipment,
+      exerciseType: seed.exerciseType,
+      imageUrl: _safeCatalogMediaUrl(seed.imageUrl, primaryMuscle),
+      videoUrl: _safeCatalogMediaUrl(seed.videoUrl, primaryMuscle),
+      sourceUrl: seed.sourceUrl,
+    );
+  }
+
+  static String _catalogPrimaryMuscle({
+    required String name,
+    required String rawMuscle,
+    required String bodyPart,
+    required String imageUrl,
+  }) {
+    final inferred = ExerciseMuscleClassifier.inferPrimaryMuscleFromName(name);
+    if (inferred != 'Custom') {
+      return inferred;
+    }
+
+    final mediaMuscle = _catalogMediaPrimaryMuscle(
+      name: name,
+      imageUrl: imageUrl,
+    );
+    if (mediaMuscle != null) {
+      return mediaMuscle;
+    }
+
+    final normalizedRaw = ExerciseMuscleClassifier.normalizePrimaryMuscle(
+      rawMuscle,
+    );
+    if (normalizedRaw != null && normalizedRaw != 'Custom') {
+      return normalizedRaw;
+    }
+
+    return _catalogBodyPartMuscle(bodyPart) ?? 'Custom';
+  }
+
+  static String? _catalogMediaPrimaryMuscle({
+    required String name,
+    required String imageUrl,
+  }) {
+    final lowerImageUrl = _decodeCatalogUrl(imageUrl).toLowerCase();
+    final target = _mediaTargetFromUrl(lowerImageUrl);
+    if (target == null) {
+      return null;
+    }
+
+    final text = ExerciseMuscleClassifier.lookupKey(name);
+    bool has(List<String> patterns) => patterns.any(text.contains);
+
+    return switch (target) {
+      'Chest' => 'Chest',
+      'Back' => 'Back',
+      'Waist' => 'Core',
+      'Hips' => 'Glutes',
+      'Shoulders' => 'Shoulders',
+      'Calves' => 'Calves',
+      'Forearms' => 'Forearms',
+      'Neck' => 'Neck',
+      'UpperArms' when has(['tricep', 'triceps', 'pushdown', 'extension']) =>
+        'Triceps',
+      'UpperArms' when has(['bicep', 'biceps', 'brachialis', 'curl']) =>
+        'Biceps',
+      'UpperArms' => null,
+      'Thighs' when has(['hamstring', 'leg curl', 'nordic']) => 'Hamstrings',
+      'Thighs' when has(['deadlift', 'good morning', 'hyperextension']) =>
+        'Posterior',
+      'Thighs' when has(['glute', 'hip thrust', 'bridge']) => 'Glutes',
+      'Thighs' => 'Quads',
+      _ => null,
+    };
+  }
+
+  static String _decodeCatalogUrl(String url) {
+    try {
+      return Uri.decodeFull(url);
+    } on FormatException {
+      return url;
+    }
+  }
+
+  static String? _catalogBodyPartMuscle(String value) {
+    final key = _exerciseLookupKey(value);
+    if (key.isEmpty) {
+      return null;
+    }
+    if (key.contains('chest')) {
+      return 'Chest';
+    }
+    if (key.contains('back')) {
+      return 'Back';
+    }
+    if (key.contains('shoulder')) {
+      return 'Shoulders';
+    }
+    if (key.contains('calf') || key.contains('calves')) {
+      return 'Calves';
+    }
+    if (key.contains('forearm')) {
+      return 'Forearms';
+    }
+    if (key.contains('neck')) {
+      return 'Neck';
+    }
+    if (key.contains('waist') || key.contains('abs')) {
+      return 'Core';
+    }
+    if (key.contains('hip')) {
+      return 'Glutes';
+    }
+    return null;
+  }
 
   Future<List<Exercise>> loadExercises() async {
     await ensureDefaultExercises();
@@ -94,7 +746,19 @@ class WorkoutSessionRepository {
 
     return [
       for (final row in rows)
-        Exercise(id: row.id, name: row.name, primaryMuscle: row.primaryMuscle),
+        _withCatalogMedia(
+          Exercise(
+            id: row.id,
+            name: row.name,
+            primaryMuscle: row.primaryMuscle,
+            bodyPart: row.bodyPart,
+            equipment: row.equipment,
+            exerciseType: row.exerciseType,
+            imageUrl: row.imageUrl,
+            videoUrl: row.videoUrl,
+            sourceUrl: row.sourceUrl,
+          ),
+        ),
     ];
   }
 
@@ -109,24 +773,16 @@ class WorkoutSessionRepository {
               ..orderBy([(set) => OrderingTerm.desc(set.loggedAt)]))
             .get();
 
-    if (sets.isEmpty) {
-      return const ExerciseHistory.empty();
-    }
-
-    final bestEstimatedOneRepMaxKg = sets
-        .map((set) => set.weightKg * (1 + set.reps / 30))
-        .reduce((best, current) => current > best ? current : best);
-    final last = sets.first;
-
-    return ExerciseHistory(
-      lastWeightKg: last.weightKg,
-      lastReps: last.reps,
-      bestEstimatedOneRepMaxKg: bestEstimatedOneRepMaxKg,
-      totalSets: sets.length,
-    );
+    return ExerciseHistoryCalculator.build([
+      for (final set in sets) _loggedSetFromRow(set),
+    ]);
   }
 
   Future<void> ensureDefaultExercises() async {
+    if (_didEnsureDefaultExercises) {
+      return;
+    }
+
     final now = DateTime.now();
 
     await _db.batch((batch) {
@@ -136,15 +792,236 @@ class WorkoutSessionRepository {
             id: exercise.id,
             name: exercise.name,
             primaryMuscle: exercise.primaryMuscle,
+            bodyPart: Value(exercise.bodyPart),
+            equipment: Value(exercise.equipment),
+            exerciseType: Value(exercise.exerciseType),
+            imageUrl: Value(exercise.imageUrl),
+            videoUrl: Value(exercise.videoUrl),
+            sourceUrl: Value(exercise.sourceUrl),
             createdAt: now,
           ),
       ]);
     });
+    _didEnsureDefaultExercises = true;
+  }
+
+  Exercise _withCatalogMedia(Exercise exercise) {
+    final safeExercise = exercise.copyWith(
+      imageUrl: _safeCatalogMediaUrl(exercise.imageUrl, exercise.primaryMuscle),
+      videoUrl: _safeCatalogMediaUrl(exercise.videoUrl, exercise.primaryMuscle),
+    );
+
+    if (safeExercise.imageUrl.trim().isNotEmpty &&
+        safeExercise.videoUrl.trim().isNotEmpty &&
+        safeExercise.sourceUrl.trim().isNotEmpty) {
+      return safeExercise;
+    }
+
+    final alias = _manualCatalogAliases[safeExercise.id];
+    final media =
+        _catalogMediaById[safeExercise.id] ??
+        (alias == null
+            ? null
+            : _catalogMediaByName[_exerciseLookupKey(alias)]) ??
+        _catalogMediaByName[_exerciseLookupKey(safeExercise.name)];
+
+    if (media == null) {
+      return safeExercise;
+    }
+
+    return safeExercise.copyWith(
+      bodyPart: safeExercise.bodyPart.trim().isEmpty ? media.bodyPart : null,
+      equipment: safeExercise.equipment.trim().isEmpty ? media.equipment : null,
+      exerciseType: safeExercise.exerciseType.trim().isEmpty
+          ? media.exerciseType
+          : null,
+      imageUrl: safeExercise.imageUrl.trim().isEmpty ? media.imageUrl : null,
+      videoUrl: safeExercise.videoUrl.trim().isEmpty ? media.videoUrl : null,
+      sourceUrl: safeExercise.sourceUrl.trim().isEmpty ? media.sourceUrl : null,
+    );
+  }
+
+  static Map<String, _CatalogMedia> _buildCatalogMediaByName() {
+    final result = <String, _CatalogMedia>{};
+    for (final seed in lyftaExerciseCatalog) {
+      final primaryMuscle = _catalogPrimaryMuscle(
+        name: seed.name,
+        rawMuscle: seed.primaryMuscle,
+        bodyPart: seed.bodyPart,
+        imageUrl: seed.imageUrl,
+      );
+      final media = _CatalogMedia(
+        bodyPart: seed.bodyPart,
+        equipment: seed.equipment,
+        exerciseType: seed.exerciseType,
+        imageUrl: _safeCatalogMediaUrl(seed.imageUrl, primaryMuscle),
+        videoUrl: _safeCatalogMediaUrl(seed.videoUrl, primaryMuscle),
+        sourceUrl: seed.sourceUrl,
+        quality: _catalogMediaQuality(
+          name: seed.name,
+          imageUrl: _safeCatalogMediaUrl(seed.imageUrl, primaryMuscle),
+          videoUrl: _safeCatalogMediaUrl(seed.videoUrl, primaryMuscle),
+          sourceUrl: seed.sourceUrl,
+        ),
+      );
+      final key = _exerciseLookupKey(seed.name);
+      final current = result[key];
+      if (current == null || media.quality > current.quality) {
+        result[key] = media;
+      }
+    }
+    return result;
+  }
+
+  static Map<String, _CatalogMedia> _buildCatalogMediaById() {
+    return {
+      for (final seed in lyftaExerciseCatalog)
+        seed.id: _catalogMediaFromSeed(seed),
+    };
+  }
+
+  static _CatalogMedia _catalogMediaFromSeed(LyftaExerciseSeed seed) {
+    final primaryMuscle = _catalogPrimaryMuscle(
+      name: seed.name,
+      rawMuscle: seed.primaryMuscle,
+      bodyPart: seed.bodyPart,
+      imageUrl: seed.imageUrl,
+    );
+    final imageUrl = _safeCatalogMediaUrl(seed.imageUrl, primaryMuscle);
+    final videoUrl = _safeCatalogMediaUrl(seed.videoUrl, primaryMuscle);
+    return _CatalogMedia(
+      bodyPart: seed.bodyPart,
+      equipment: seed.equipment,
+      exerciseType: seed.exerciseType,
+      imageUrl: imageUrl,
+      videoUrl: videoUrl,
+      sourceUrl: seed.sourceUrl,
+      quality: _catalogMediaQuality(
+        name: seed.name,
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        sourceUrl: seed.sourceUrl,
+      ),
+    );
+  }
+
+  static int _catalogMediaQuality({
+    required String name,
+    required String imageUrl,
+    required String videoUrl,
+    required String sourceUrl,
+  }) {
+    var score = 0;
+    if (imageUrl.trim().isNotEmpty) {
+      score += 20;
+    }
+    if (videoUrl.trim().isNotEmpty) {
+      score += 30;
+    }
+    if (sourceUrl.trim().isNotEmpty) {
+      score += 8;
+    }
+    if (!RegExp(r'\((male|female)\)', caseSensitive: false).hasMatch(name)) {
+      score += 8;
+    }
+    if (!RegExp(r'\bversion\b', caseSensitive: false).hasMatch(name)) {
+      score += 5;
+    }
+    return score;
+  }
+
+  static String _safeCatalogMediaUrl(String url, String primaryMuscle) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty || _isCatalogMediaUrlSafe(trimmed, primaryMuscle)) {
+      return trimmed;
+    }
+    return '';
+  }
+
+  static bool _isCatalogMediaUrlSafe(String url, String primaryMuscle) {
+    final lower = Uri.decodeFull(url).toLowerCase();
+    if (!lower.contains('apilyfta.com/static/gymvisual')) {
+      return true;
+    }
+
+    final mediaTarget = _mediaTargetFromUrl(lower);
+    if (mediaTarget == null) {
+      return true;
+    }
+
+    final allowedTargets = switch (primaryMuscle) {
+      'Chest' => const {'Chest'},
+      'Back' => const {'Back'},
+      'Quads' => const {'Thighs'},
+      'Posterior' => const {'Back', 'Hips', 'Thighs'},
+      'Shoulders' => const {'Shoulders'},
+      'Glutes' => const {'Hips', 'Thighs', 'Back'},
+      'Hamstrings' => const {'Thighs', 'Hips', 'Back'},
+      'Biceps' => const {'UpperArms'},
+      'Triceps' => const {'UpperArms'},
+      'Core' => const {'Waist'},
+      'Calves' => const {'Calves'},
+      'Forearms' => const {'Forearms'},
+      'Neck' => const {'Neck'},
+      _ => const <String>{},
+    };
+
+    return allowedTargets.isEmpty || allowedTargets.contains(mediaTarget);
+  }
+
+  static String? _mediaTargetFromUrl(String lowerUrl) {
+    final path = Uri.tryParse(lowerUrl)?.path.toLowerCase() ?? lowerUrl;
+    final normalized = path
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_')
+        .replaceAll('__', '_');
+    final matches = RegExp(
+      r'(^|_)(calves?|chest|back|waist|hips?|shoulders?|upper_arms?|forearms?|thighs?|neck)(_|\.|$)',
+    ).allMatches(normalized).toList();
+    if (matches.isEmpty) {
+      return null;
+    }
+
+    return switch (matches.last.group(2)) {
+      'calf' || 'calves' => 'Calves',
+      'chest' => 'Chest',
+      'back' => 'Back',
+      'waist' => 'Waist',
+      'hip' || 'hips' => 'Hips',
+      'shoulder' || 'shoulders' => 'Shoulders',
+      'upper_arm' || 'upper_arms' => 'UpperArms',
+      'forearm' || 'forearms' => 'Forearms',
+      'thigh' || 'thighs' => 'Thighs',
+      'neck' => 'Neck',
+      _ => null,
+    };
+  }
+
+  static String _exerciseLookupKey(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'\((male|female)\)', caseSensitive: false), ' ')
+        .replaceAll(RegExp(r'\b(male|female)\b', caseSensitive: false), ' ')
+        .replaceAll(
+          RegExp(r'\bversion\s*[-\s]*\d+\b', caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(RegExp(r'\b\d+\b'), ' ')
+        .replaceAll(RegExp(r'[_/\\|°]+'), ' ')
+        .replaceAll(RegExp(r'[^a-zа-яіїєґ0-9]+', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   Future<Exercise> createCustomExercise({
     required String name,
     required String primaryMuscle,
+    String bodyPart = '',
+    String equipment = '',
+    String exerciseType = '',
+    String imageUrl = '',
+    String videoUrl = '',
+    String sourceUrl = '',
   }) async {
     await ensureDefaultExercises();
 
@@ -163,6 +1040,12 @@ class WorkoutSessionRepository {
         id: existing.id,
         name: existing.name,
         primaryMuscle: existing.primaryMuscle,
+        bodyPart: existing.bodyPart,
+        equipment: existing.equipment,
+        exerciseType: existing.exerciseType,
+        imageUrl: existing.imageUrl,
+        videoUrl: existing.videoUrl,
+        sourceUrl: existing.sourceUrl,
       );
     }
 
@@ -170,6 +1053,12 @@ class WorkoutSessionRepository {
       id: 'custom_${_uuid.v4()}',
       name: normalizedName,
       primaryMuscle: normalizedMuscle.isEmpty ? 'Custom' : normalizedMuscle,
+      bodyPart: bodyPart.trim(),
+      equipment: equipment.trim(),
+      exerciseType: exerciseType.trim(),
+      imageUrl: imageUrl.trim(),
+      videoUrl: videoUrl.trim(),
+      sourceUrl: sourceUrl.trim(),
     );
 
     await _db
@@ -179,6 +1068,12 @@ class WorkoutSessionRepository {
             id: exercise.id,
             name: exercise.name,
             primaryMuscle: exercise.primaryMuscle,
+            bodyPart: Value(exercise.bodyPart),
+            equipment: Value(exercise.equipment),
+            exerciseType: Value(exercise.exerciseType),
+            imageUrl: Value(exercise.imageUrl),
+            videoUrl: Value(exercise.videoUrl),
+            sourceUrl: Value(exercise.sourceUrl),
             createdAt: DateTime.now(),
             syncStatus: const Value('pending'),
           ),
@@ -192,6 +1087,12 @@ class WorkoutSessionRepository {
     required Exercise exercise,
     required String name,
     required String primaryMuscle,
+    String? bodyPart,
+    String? equipment,
+    String? exerciseType,
+    String? imageUrl,
+    String? videoUrl,
+    String? sourceUrl,
   }) async {
     final normalizedName = _capitalizeWords(name);
     final normalizedMuscle = _capitalizeWords(primaryMuscle);
@@ -207,6 +1108,12 @@ class WorkoutSessionRepository {
         primaryMuscle: Value(
           normalizedMuscle.isEmpty ? exercise.primaryMuscle : normalizedMuscle,
         ),
+        bodyPart: Value(bodyPart?.trim() ?? exercise.bodyPart),
+        equipment: Value(equipment?.trim() ?? exercise.equipment),
+        exerciseType: Value(exerciseType?.trim() ?? exercise.exerciseType),
+        imageUrl: Value(imageUrl?.trim() ?? exercise.imageUrl),
+        videoUrl: Value(videoUrl?.trim() ?? exercise.videoUrl),
+        sourceUrl: Value(sourceUrl?.trim() ?? exercise.sourceUrl),
         syncStatus: const Value('pending'),
       ),
     );
@@ -216,12 +1123,17 @@ class WorkoutSessionRepository {
         .write(WorkoutSetEntriesCompanion(exerciseName: Value(normalizedName)));
 
     unawaited(_autoSync());
-    return Exercise(
-      id: exercise.id,
+    return exercise.copyWith(
       name: normalizedName,
       primaryMuscle: normalizedMuscle.isEmpty
           ? exercise.primaryMuscle
           : normalizedMuscle,
+      bodyPart: bodyPart?.trim(),
+      equipment: equipment?.trim(),
+      exerciseType: exerciseType?.trim(),
+      imageUrl: imageUrl?.trim(),
+      videoUrl: videoUrl?.trim(),
+      sourceUrl: sourceUrl?.trim(),
     );
   }
 
@@ -268,10 +1180,18 @@ class WorkoutSessionRepository {
       if (row != null) {
         exercises.add(
           TrainingPlanExercise(
-            exercise: Exercise(
-              id: row.id,
-              name: row.name,
-              primaryMuscle: row.primaryMuscle,
+            exercise: _withCatalogMedia(
+              Exercise(
+                id: row.id,
+                name: row.name,
+                primaryMuscle: row.primaryMuscle,
+                bodyPart: row.bodyPart,
+                equipment: row.equipment,
+                exerciseType: row.exerciseType,
+                imageUrl: row.imageUrl,
+                videoUrl: row.videoUrl,
+                sourceUrl: row.sourceUrl,
+              ),
             ),
             targetSets: planned.targetSets,
             targetReps: planned.targetReps,
@@ -335,18 +1255,12 @@ class WorkoutSessionRepository {
               ])
               ..limit(1))
             .getSingleOrNull();
-    final lastDayNumber = lastSession?.templateDayNumber;
-    if (lastDayNumber == null) {
-      return plannedDays.first;
-    }
-
-    for (final dayNumber in plannedDays) {
-      if (dayNumber > lastDayNumber) {
-        return dayNumber;
-      }
-    }
-
-    return plannedDays.first;
+    return TrainingPlanScheduler.suggestedDayNumber(
+      plannedDays: plannedDays,
+      lastFinishedDayNumber: lastSession?.templateDayNumber,
+      lastFinishedAt: lastSession?.finishedAt,
+      now: DateTime.now(),
+    );
   }
 
   Future<void> saveTrainingDayPlan({
@@ -499,6 +1413,8 @@ class WorkoutSessionRepository {
     return WorkoutSessionDraft(
       sessionId: session.id,
       startedAt: session.startedAt,
+      templateName: session.templateName,
+      templateDayNumber: session.templateDayNumber,
       sets: [
         for (final row in rows)
           WorkoutSet(
@@ -592,106 +1508,89 @@ class WorkoutSessionRepository {
 
   Future<DashboardSnapshot> loadDashboardSnapshot({DateTime? now}) async {
     final currentTime = now ?? DateTime.now();
-    final weekStart = _startOfWeek(currentTime);
-
     final sessions = await _db.select(_db.workoutSessions).get();
     final sets = await _db.select(_db.workoutSetEntries).get();
 
-    final weekVolumeKg = sets
-        .where((set) => !set.loggedAt.isBefore(weekStart))
-        .fold<double>(0, (sum, set) => sum + set.weightKg * set.reps);
-
-    sets.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
-
-    return DashboardSnapshot(
-      weekNumber: _weekNumber(currentTime),
-      weekVolumeKg: weekVolumeKg,
-      sessionCount: sessions
-          .where((session) => session.finishedAt != null)
-          .length,
-      lastExerciseName: sets.isEmpty ? null : sets.first.exerciseName,
-      recentTrainingDates: _uniqueTrainingDates(
-        sets.map((set) => set.loggedAt),
-      ),
+    return WorkoutAnalyticsCalculator.dashboard(
+      now: currentTime,
+      sessions: [
+        for (final session in sessions) _loggedSessionFromRow(session),
+      ],
+      sets: [for (final set in sets) _loggedSetFromRow(set)],
     );
   }
 
   Future<AnalyticsSnapshot> loadAnalyticsSnapshot({DateTime? now}) async {
+    await ensureDefaultExercises();
+
     final currentTime = now ?? DateTime.now();
-    final rangeStart = DateTime(
-      currentTime.year,
-      currentTime.month,
-      currentTime.day,
-    ).subtract(const Duration(days: 6));
     final sets = await _db.select(_db.workoutSetEntries).get();
     final exercises = await _db.select(_db.exercises).get();
     final sessions = await _db.select(_db.workoutSessions).get();
 
-    if (sets.isEmpty) {
-      return const AnalyticsSnapshot.empty();
-    }
-
-    final totalVolumeKg = sets.fold<double>(
-      0,
-      (sum, set) => sum + set.weightKg * set.reps,
+    return WorkoutAnalyticsCalculator.analytics(
+      now: currentTime,
+      sets: [for (final set in sets) _loggedSetFromRow(set)],
+      sessions: [
+        for (final session in sessions) _loggedSessionFromRow(session),
+      ],
+      exercises: [
+        for (final exercise in exercises)
+          ExerciseMuscleRef(
+            id: exercise.id,
+            name: exercise.name,
+            primaryMuscle: exercise.primaryMuscle,
+          ),
+      ],
     );
-    final bestEstimatedOneRepMaxKg = sets
-        .map((set) => set.weightKg * (1 + set.reps / 30))
-        .reduce((best, current) => current > best ? current : best);
-    final heaviestSetKg = sets
-        .map((set) => set.weightKg)
-        .reduce((best, current) => current > best ? current : best);
+  }
 
-    final recentDailyVolumes = <DailyVolume>[];
-    for (var index = 0; index < 7; index += 1) {
-      final day = rangeStart.add(Duration(days: index));
-      final nextDay = day.add(const Duration(days: 1));
-      final volumeKg = sets
-          .where(
-            (set) =>
-                !set.loggedAt.isBefore(day) && set.loggedAt.isBefore(nextDay),
-          )
-          .fold<double>(0, (sum, set) => sum + set.weightKg * set.reps);
-      recentDailyVolumes.add(DailyVolume(date: day, volumeKg: volumeKg));
+  Future<List<ProgressPhoto>> loadProgressPhotos() async {
+    final rows = await (_db.select(
+      _db.progressPhotoEntries,
+    )..orderBy([(row) => OrderingTerm.desc(row.capturedAt)])).get();
+    return [for (final row in rows) _progressPhotoFromRow(row)];
+  }
+
+  Future<ProgressPhoto> addProgressPhoto({
+    required String imageDataUrl,
+    String note = '',
+    DateTime? capturedAt,
+  }) async {
+    final trimmedImage = imageDataUrl.trim();
+    if (trimmedImage.isEmpty) {
+      throw ArgumentError.value(imageDataUrl, 'imageDataUrl', 'Photo is empty');
     }
 
-    final exerciseMusclesById = {
-      for (final exercise in exercises) exercise.id: exercise.primaryMuscle,
-    };
-    final exerciseMusclesByName = {
-      for (final exercise in exercises) exercise.name: exercise.primaryMuscle,
-    };
-    final muscleTotals = <String, double>{};
-
-    for (final set in sets) {
-      final muscle =
-          (set.exerciseId == null
-              ? null
-              : exerciseMusclesById[set.exerciseId]) ??
-          exerciseMusclesByName[set.exerciseName] ??
-          'Unknown';
-      muscleTotals[muscle] =
-          (muscleTotals[muscle] ?? 0) + set.weightKg * set.reps;
-    }
-
-    final muscleVolumes = [
-      for (final entry in muscleTotals.entries)
-        MuscleVolume(muscle: entry.key, volumeKg: entry.value),
-    ]..sort((a, b) => b.volumeKg.compareTo(a.volumeKg));
-    final exerciseStats = _buildExerciseStats(sets);
-    final trainingDays = _buildTrainingDaySummaries(sets, sessions);
-
-    return AnalyticsSnapshot(
-      totalVolumeKg: totalVolumeKg,
-      bestEstimatedOneRepMaxKg: bestEstimatedOneRepMaxKg,
-      heaviestSetKg: heaviestSetKg,
-      totalSets: sets.length,
-      dailyVolumes: recentDailyVolumes,
-      muscleVolumes: muscleVolumes,
-      exerciseStats: exerciseStats,
-      trainingDates: _uniqueTrainingDates(sets.map((set) => set.loggedAt)),
-      trainingDays: trainingDays,
+    final now = DateTime.now();
+    final photo = ProgressPhoto(
+      id: _uuid.v4(),
+      imageDataUrl: trimmedImage,
+      note: note.trim(),
+      capturedAt: capturedAt ?? now,
+      createdAt: now,
     );
+
+    await _db
+        .into(_db.progressPhotoEntries)
+        .insert(
+          ProgressPhotoEntriesCompanion.insert(
+            id: photo.id,
+            imageDataUrl: photo.imageDataUrl,
+            note: Value(photo.note),
+            capturedAt: photo.capturedAt,
+            createdAt: photo.createdAt,
+          ),
+        );
+    unawaited(_autoSync());
+    return photo;
+  }
+
+  Future<void> deleteProgressPhoto(String photoId) async {
+    await (_db.delete(
+      _db.progressPhotoEntries,
+    )..where((photo) => photo.id.equals(photoId))).go();
+    unawaited(_autoSync());
   }
 
   Future<UserProfile> loadProfile() async {
@@ -763,21 +1662,51 @@ class WorkoutSessionRepository {
     required String password,
   }) async {
     final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    await SyncApiClient(
-      baseUrl: normalizedBaseUrl,
-    ).requestRegistrationCode(email: email, password: password);
-    throw SyncException('verification_required');
+    final session = await SyncApiClient(baseUrl: normalizedBaseUrl)
+        .requestRegistrationCode(
+          email: email,
+          password: password,
+          name: profile.displayName,
+        );
+    if (session.token.trim().isNotEmpty) {
+      return _completeAuth(
+        profile: profile,
+        baseUrl: normalizedBaseUrl,
+        session: session,
+        shouldRestore: false,
+        successMessage: 'Registered and synced',
+      );
+    }
+    try {
+      final loginSession = await SyncApiClient(
+        baseUrl: normalizedBaseUrl,
+      ).login(email: email, password: password);
+      if (loginSession.token.trim().isNotEmpty) {
+        return _completeAuth(
+          profile: profile,
+          baseUrl: normalizedBaseUrl,
+          session: loginSession,
+          shouldRestore: false,
+          successMessage: 'Registered and synced',
+        );
+      }
+    } catch (_) {
+      // Some API modes require an email code before login. In that case the UI
+      // should continue to the verification step.
+    }
+    throw SyncException('verification_required', session.devCode);
   }
 
-  Future<void> requestRegistrationCode({
+  Future<AuthSession> requestRegistrationCode({
     required String baseUrl,
     required String email,
     required String password,
+    String? name,
   }) async {
     final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    await SyncApiClient(
+    return SyncApiClient(
       baseUrl: normalizedBaseUrl,
-    ).requestRegistrationCode(email: email, password: password);
+    ).requestRegistrationCode(email: email, password: password, name: name);
   }
 
   Future<AuthRunResult> verifyRegistrationCode({
@@ -800,14 +1729,15 @@ class WorkoutSessionRepository {
     );
   }
 
-  Future<void> requestPasswordResetCode({
+  Future<String?> requestPasswordResetCode({
     required String baseUrl,
     required String email,
   }) async {
     final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    await SyncApiClient(
+    final result = await SyncApiClient(
       baseUrl: normalizedBaseUrl,
     ).requestPasswordResetCode(email: email);
+    return result.devCode.trim().isEmpty ? null : result.devCode.trim();
   }
 
   Future<AuthRunResult> confirmPasswordReset({
@@ -990,6 +1920,7 @@ class WorkoutSessionRepository {
     final plannedExercises = await _db.select(_db.plannedDayExercises).get();
     final sessions = await _db.select(_db.workoutSessions).get();
     final sets = await _db.select(_db.workoutSetEntries).get();
+    final progressPhotos = await _db.select(_db.progressPhotoEntries).get();
 
     return {
       'schemaVersion': _db.schemaVersion,
@@ -1009,6 +1940,12 @@ class WorkoutSessionRepository {
             'id': row.id,
             'name': row.name,
             'primaryMuscle': row.primaryMuscle,
+            'bodyPart': row.bodyPart,
+            'equipment': row.equipment,
+            'exerciseType': row.exerciseType,
+            'imageUrl': row.imageUrl,
+            'videoUrl': row.videoUrl,
+            'sourceUrl': row.sourceUrl,
             'createdAt': row.createdAt.toIso8601String(),
             'syncStatus': row.syncStatus,
           },
@@ -1063,6 +2000,17 @@ class WorkoutSessionRepository {
             'syncStatus': row.syncStatus,
           },
       ],
+      'progressPhotos': [
+        for (final row in progressPhotos)
+          {
+            'id': row.id,
+            'imageDataUrl': row.imageDataUrl,
+            'note': row.note,
+            'capturedAt': row.capturedAt.toIso8601String(),
+            'createdAt': row.createdAt.toIso8601String(),
+            'syncStatus': row.syncStatus,
+          },
+      ],
     };
   }
 
@@ -1079,10 +2027,12 @@ class WorkoutSessionRepository {
     final plannedExercises = _listOfMaps(snapshot['plannedExercises']);
     final sessions = _listOfMaps(snapshot['sessions']);
     final sets = _listOfMaps(snapshot['sets']);
+    final progressPhotos = _listOfMaps(snapshot['progressPhotos']);
     final profileData = (snapshot['profile'] as Map?)?.cast<String, Object?>();
     final now = DateTime.now();
 
     await _db.transaction(() async {
+      await _db.delete(_db.progressPhotoEntries).go();
       await _db.delete(_db.workoutSetEntries).go();
       await _db.delete(_db.workoutSessions).go();
       await _db.delete(_db.plannedDayExercises).go();
@@ -1097,6 +2047,12 @@ class WorkoutSessionRepository {
               id: _string(row, 'id'),
               name: _string(row, 'name'),
               primaryMuscle: _string(row, 'primaryMuscle', fallback: 'Custom'),
+              bodyPart: Value(_string(row, 'bodyPart', fallback: '')),
+              equipment: Value(_string(row, 'equipment', fallback: '')),
+              exerciseType: Value(_string(row, 'exerciseType', fallback: '')),
+              imageUrl: Value(_string(row, 'imageUrl', fallback: '')),
+              videoUrl: Value(_string(row, 'videoUrl', fallback: '')),
+              sourceUrl: Value(_string(row, 'sourceUrl', fallback: '')),
               createdAt: _date(row, 'createdAt', fallback: now),
               syncStatus: Value(_string(row, 'syncStatus', fallback: 'synced')),
             ),
@@ -1154,6 +2110,18 @@ class WorkoutSessionRepository {
               weightKg: _double(row, 'weightKg'),
               reps: _int(row, 'reps'),
               loggedAt: _date(row, 'loggedAt', fallback: now),
+              syncStatus: Value(_string(row, 'syncStatus', fallback: 'synced')),
+            ),
+        ]);
+
+        batch.insertAll(_db.progressPhotoEntries, [
+          for (final row in progressPhotos)
+            ProgressPhotoEntriesCompanion.insert(
+              id: _string(row, 'id'),
+              imageDataUrl: _string(row, 'imageDataUrl'),
+              note: Value(_string(row, 'note', fallback: '')),
+              capturedAt: _date(row, 'capturedAt', fallback: now),
+              createdAt: _date(row, 'createdAt', fallback: now),
               syncStatus: Value(_string(row, 'syncStatus', fallback: 'synced')),
             ),
         ]);
@@ -1220,17 +2188,6 @@ class WorkoutSessionRepository {
     }
   }
 
-  DateTime _startOfWeek(DateTime date) {
-    final normalized = DateTime(date.year, date.month, date.day);
-    return normalized.subtract(Duration(days: normalized.weekday - 1));
-  }
-
-  int _weekNumber(DateTime date) {
-    final yearStart = DateTime(date.year);
-    final dayOfYear = date.difference(yearStart).inDays + 1;
-    return ((dayOfYear - date.weekday + 10) / 7).floor();
-  }
-
   int _legacyWeekdayFromDayNumber(int dayNumber) {
     if (dayNumber < 1) {
       return 1;
@@ -1241,132 +2198,36 @@ class WorkoutSessionRepository {
     return dayNumber;
   }
 
-  List<DateTime> _uniqueTrainingDates(Iterable<DateTime> dates) {
-    final normalized = {
-      for (final date in dates) DateTime(date.year, date.month, date.day),
-    }.toList()..sort((a, b) => b.compareTo(a));
-    return normalized;
-  }
-
-  List<ExerciseWeightStats> _buildExerciseStats(
-    List<WorkoutSetEntry> sets, {
-    bool sortByFirstLoggedAt = false,
-  }) {
-    final buckets = <String, List<WorkoutSetEntry>>{};
-    for (final set in sets) {
-      final key = set.exerciseId ?? set.exerciseName;
-      buckets.putIfAbsent(key, () => []).add(set);
-    }
-
-    final bucketEntries = buckets.entries.toList()
-      ..sort((a, b) {
-        if (sortByFirstLoggedAt) {
-          return _firstLoggedAt(a.value).compareTo(_firstLoggedAt(b.value));
-        }
-
-        return _lastLoggedAt(b.value).compareTo(_lastLoggedAt(a.value));
-      });
-
-    return [
-      for (final entry in bucketEntries)
-        ExerciseWeightStats(
-          exerciseId: entry.value.first.exerciseId,
-          exerciseName: entry.value.first.exerciseName,
-          minWeightKg: entry.value
-              .map((set) => set.weightKg)
-              .reduce((min, value) => value < min ? value : min),
-          maxWeightKg: entry.value
-              .map((set) => set.weightKg)
-              .reduce((max, value) => value > max ? value : max),
-          minReps: entry.value
-              .map((set) => set.reps)
-              .reduce((min, value) => value < min ? value : min),
-          maxReps: entry.value
-              .map((set) => set.reps)
-              .reduce((max, value) => value > max ? value : max),
-          totalSets: entry.value.length,
-          lastLoggedAt: _lastLoggedAt(entry.value),
-        ),
-    ];
-  }
-
-  List<TrainingDaySummary> _buildTrainingDaySummaries(
-    List<WorkoutSetEntry> sets,
-    List<WorkoutSession> sessions,
-  ) {
-    final sessionsById = {for (final session in sessions) session.id: session};
-    final buckets = <DateTime, List<WorkoutSetEntry>>{};
-    for (final set in sets) {
-      final date = DateTime(
-        set.loggedAt.year,
-        set.loggedAt.month,
-        set.loggedAt.day,
-      );
-      buckets.putIfAbsent(date, () => []).add(set);
-    }
-
-    final summaries = [
-      for (final entry in buckets.entries)
-        _buildTrainingDaySummary(
-          date: entry.key,
-          sets: entry.value,
-          sessionsById: sessionsById,
-        ),
-    ]..sort((a, b) => b.date.compareTo(a.date));
-
-    return summaries;
-  }
-
-  TrainingDaySummary _buildTrainingDaySummary({
-    required DateTime date,
-    required List<WorkoutSetEntry> sets,
-    required Map<String, WorkoutSession> sessionsById,
-  }) {
-    final orderedSets = [...sets]
-      ..sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
-    final daySessions = <WorkoutSession>[];
-    final seenSessionIds = <String>{};
-
-    for (final set in orderedSets) {
-      if (!seenSessionIds.add(set.sessionId)) {
-        continue;
-      }
-
-      final session = sessionsById[set.sessionId];
-      if (session != null) {
-        daySessions.add(session);
-      }
-    }
-
-    daySessions.sort((a, b) => a.startedAt.compareTo(b.startedAt));
-    final primarySession =
-        daySessions
-            .where(
-              (session) =>
-                  session.templateDayNumber != null ||
-                  (session.templateName?.trim().isNotEmpty ?? false),
-            )
-            .firstOrNull ??
-        daySessions.firstOrNull;
-
-    return TrainingDaySummary(
-      date: date,
-      exercises: _buildExerciseStats(orderedSets, sortByFirstLoggedAt: true),
-      templateName: primarySession?.templateName,
-      templateDayNumber: primarySession?.templateDayNumber,
+  LoggedWorkoutSet _loggedSetFromRow(WorkoutSetEntry row) {
+    return LoggedWorkoutSet(
+      id: row.id,
+      sessionId: row.sessionId,
+      exerciseId: row.exerciseId,
+      exerciseName: row.exerciseName,
+      weightKg: row.weightKg,
+      reps: row.reps,
+      loggedAt: row.loggedAt,
     );
   }
 
-  DateTime _firstLoggedAt(List<WorkoutSetEntry> sets) {
-    return sets
-        .map((set) => set.loggedAt)
-        .reduce((first, value) => value.isBefore(first) ? value : first);
+  LoggedWorkoutSession _loggedSessionFromRow(WorkoutSession row) {
+    return LoggedWorkoutSession(
+      id: row.id,
+      startedAt: row.startedAt,
+      finishedAt: row.finishedAt,
+      templateName: row.templateName,
+      templateDayNumber: row.templateDayNumber,
+    );
   }
 
-  DateTime _lastLoggedAt(List<WorkoutSetEntry> sets) {
-    return sets
-        .map((set) => set.loggedAt)
-        .reduce((last, value) => value.isAfter(last) ? value : last);
+  ProgressPhoto _progressPhotoFromRow(ProgressPhotoEntry row) {
+    return ProgressPhoto(
+      id: row.id,
+      imageDataUrl: row.imageDataUrl,
+      note: row.note,
+      capturedAt: row.capturedAt,
+      createdAt: row.createdAt,
+    );
   }
 
   String _normalizeBaseUrl(String value) {
@@ -1449,7 +2310,7 @@ class WorkoutSessionRepository {
     return DateTime.tryParse(raw);
   }
 
-  String _capitalizeFirst(String value) {
+  static String _capitalizeFirst(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
       return '';
@@ -1457,7 +2318,7 @@ class WorkoutSessionRepository {
     return '${trimmed.substring(0, 1).toUpperCase()}${trimmed.substring(1)}';
   }
 
-  String _capitalizeWords(String value) {
+  static String _capitalizeWords(String value) {
     return value
         .trim()
         .split(RegExp(r'\s+'))
@@ -1465,6 +2326,26 @@ class WorkoutSessionRepository {
         .map(_capitalizeFirst)
         .join(' ');
   }
+}
+
+class _CatalogMedia {
+  const _CatalogMedia({
+    required this.bodyPart,
+    required this.equipment,
+    required this.exerciseType,
+    required this.imageUrl,
+    required this.videoUrl,
+    required this.sourceUrl,
+    required this.quality,
+  });
+
+  final String bodyPart;
+  final String equipment;
+  final String exerciseType;
+  final String imageUrl;
+  final String videoUrl;
+  final String sourceUrl;
+  final int quality;
 }
 
 class SyncRunResult {

@@ -6,34 +6,50 @@ import '../localization/gym_labels.dart';
 import '../theme/app_theme.dart';
 
 class GymLanguageToggle extends StatelessWidget {
-  const GymLanguageToggle({super.key});
+  const GymLanguageToggle({this.compact = false, super.key});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final language = context.watch<LocaleCubit>().state;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(6),
-        color: AppColors.surface,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _LanguageButton(
-            label: 'УКР',
-            isSelected: language == GymLanguage.uk,
-            onPressed: () =>
-                context.read<LocaleCubit>().setLanguage(GymLanguage.uk),
-          ),
-          _LanguageButton(
-            label: 'ENG',
-            isSelected: language == GymLanguage.en,
-            onPressed: () =>
-                context.read<LocaleCubit>().setLanguage(GymLanguage.en),
-          ),
-        ],
+    return Material(
+      color: Colors.transparent,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 160),
+        padding: EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(999),
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.lime.withValues(alpha: 0.08),
+              blurRadius: 18,
+              spreadRadius: -10,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LanguageButton(
+              label: compact ? 'UA' : 'УКР',
+              isSelected: language == GymLanguage.uk,
+              compact: compact,
+              onPressed: () =>
+                  context.read<LocaleCubit>().setLanguage(GymLanguage.uk),
+            ),
+            _LanguageButton(
+              label: compact ? 'EN' : 'ENG',
+              isSelected: language == GymLanguage.en,
+              compact: compact,
+              onPressed: () =>
+                  context.read<LocaleCubit>().setLanguage(GymLanguage.en),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -43,11 +59,13 @@ class _LanguageButton extends StatelessWidget {
   const _LanguageButton({
     required this.label,
     required this.isSelected,
+    required this.compact,
     required this.onPressed,
   });
 
   final String label;
   final bool isSelected;
+  final bool compact;
   final VoidCallback onPressed;
 
   @override
@@ -57,16 +75,18 @@ class _LanguageButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(5),
       child: AnimatedContainer(
         duration: Duration(milliseconds: 160),
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        width: compact ? 38 : 48,
+        height: compact ? 30 : 34,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.lime : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: isSelected ? AppColors.ink : AppColors.muted,
-            fontSize: 11,
+            fontSize: compact ? 10 : 11,
             fontWeight: FontWeight.w900,
             letterSpacing: 0,
           ),
