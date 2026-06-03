@@ -178,10 +178,11 @@ class _ExerciseSearchScreenState extends State<ExerciseSearchScreen> {
   List<Exercise> _filtered(GymLabels labels) {
     final query = _searchController.text.trim().toLowerCase();
     final filtered = _exercises.where((exercise) {
+      final hasImage = exercise.imageUrl.trim().isNotEmpty;
+      final hasVideo = exercise.videoUrl.trim().isNotEmpty;
       final matchesMuscle =
           _selectedMuscle == null || exercise.primaryMuscle == _selectedMuscle;
-      final matchesVideo =
-          !_showOnlyWithVideo || exercise.videoUrl.trim().isNotEmpty;
+      final matchesVideo = !_showOnlyWithVideo || hasVideo;
       final matchesQuery =
           query.isEmpty ||
           exercise.name.toLowerCase().contains(query) ||
@@ -197,10 +198,15 @@ class _ExerciseSearchScreenState extends State<ExerciseSearchScreen> {
               .toLowerCase()
               .contains(query);
 
-      return matchesMuscle && matchesVideo && matchesQuery;
+      return hasImage && matchesMuscle && matchesVideo && matchesQuery;
     });
 
     return dedupeExerciseCatalog(filtered, labels)..sort((a, b) {
+      final aVideo = a.videoUrl.trim().isNotEmpty ? 0 : 1;
+      final bVideo = b.videoUrl.trim().isNotEmpty ? 0 : 1;
+      if (aVideo != bVideo) {
+        return aVideo.compareTo(bVideo);
+      }
       final aPopular = _popularRank(a);
       final bPopular = _popularRank(b);
       if (_selectedMuscle == null && query.isEmpty && aPopular != bPopular) {
@@ -304,7 +310,10 @@ class _ExerciseSearchScreenState extends State<ExerciseSearchScreen> {
   Widget build(BuildContext context) {
     final labels = context.watch<LocaleCubit>().labels;
     final exercises = _filtered(labels);
-    final catalogExercises = dedupeExerciseCatalog(_exercises, labels);
+    final catalogExercises = dedupeExerciseCatalog(
+      _exercises.where((exercise) => exercise.imageUrl.trim().isNotEmpty),
+      labels,
+    );
     final totalExercises = catalogExercises.length;
     final muscleCounts = _muscleCounts(catalogExercises);
     final muscles = _orderedMuscles(muscleCounts, labels);

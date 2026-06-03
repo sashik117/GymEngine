@@ -1873,11 +1873,6 @@ String? _exerciseMediaUrl(Exercise exercise) {
     return videoUrl;
   }
 
-  final sourceUrl = exercise.sourceUrl.trim();
-  if (sourceUrl.isNotEmpty) {
-    return sourceUrl;
-  }
-
   return null;
 }
 
@@ -1898,6 +1893,7 @@ List<Exercise> _filteredCatalogExercises({
 }) {
   final normalizedQuery = query.trim().toLowerCase();
   final filtered = exercises.where((exercise) {
+    final hasImage = exercise.imageUrl.trim().isNotEmpty;
     final matchesMuscle = muscle == null || exercise.primaryMuscle == muscle;
     final matchesQuery =
         normalizedQuery.isEmpty ||
@@ -1914,10 +1910,16 @@ List<Exercise> _filteredCatalogExercises({
             .muscleName(exercise.primaryMuscle)
             .toLowerCase()
             .contains(normalizedQuery);
-    return matchesMuscle && matchesQuery;
+    return hasImage && matchesMuscle && matchesQuery;
   });
 
   return dedupeExerciseCatalog(filtered, labels)..sort((a, b) {
+    final videoCompare = (a.videoUrl.trim().isNotEmpty ? 0 : 1).compareTo(
+      b.videoUrl.trim().isNotEmpty ? 0 : 1,
+    );
+    if (videoCompare != 0) {
+      return videoCompare;
+    }
     final muscleCompare = a.primaryMuscle.compareTo(b.primaryMuscle);
     if (muscleCompare != 0) {
       return muscleCompare;

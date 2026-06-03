@@ -50,8 +50,6 @@ class _ExerciseDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl = exercise.imageUrl.trim();
     final videoUrl = exercise.videoUrl.trim();
-    final sourceUrl = exercise.sourceUrl.trim();
-    final mediaUrl = videoUrl.isNotEmpty ? videoUrl : sourceUrl;
     final name = labels.exerciseName(exercise.id, exercise.name);
 
     return DraggableScrollableSheet(
@@ -146,11 +144,11 @@ class _ExerciseDetailSheet extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (mediaUrl.isNotEmpty) ...[
+                              if (videoUrl.isNotEmpty) ...[
                                 SizedBox(width: 12),
                                 IconButton.filled(
                                   onPressed: () =>
-                                      unawaited(openExternalLink(mediaUrl)),
+                                      unawaited(openExternalLink(videoUrl)),
                                   style: IconButton.styleFrom(
                                     backgroundColor: AppColors.lime,
                                     foregroundColor: AppColors.ink,
@@ -221,7 +219,7 @@ class _ExerciseDetailSheet extends StatelessWidget {
                   uk: 'Відео техніки виконання',
                   en: 'Technique video',
                 ),
-                body: mediaUrl.isEmpty
+                body: videoUrl.isEmpty
                     ? _text(
                         labels,
                         uk: 'Для цієї вправи поки немає відео.',
@@ -229,26 +227,13 @@ class _ExerciseDetailSheet extends StatelessWidget {
                       )
                     : _text(
                         labels,
-                        uk: 'Відкриє відео або сторінку вправи з демонстрацією.',
-                        en: 'Opens the exercise demo video or source page.',
+                        uk: 'Відкриє відео з технікою виконання.',
+                        en: 'Opens the exercise technique video.',
                       ),
-                onTap: mediaUrl.isEmpty
+                onTap: videoUrl.isEmpty
                     ? null
-                    : () => unawaited(openExternalLink(mediaUrl)),
+                    : () => unawaited(openExternalLink(videoUrl)),
               ),
-              if (sourceUrl.isNotEmpty) ...[
-                SizedBox(height: 10),
-                _TechniqueAction(
-                  icon: Icons.open_in_new,
-                  title: _text(
-                    labels,
-                    uk: 'Сторінка вправи',
-                    en: 'Source page',
-                  ),
-                  body: sourceUrl,
-                  onTap: () => unawaited(openExternalLink(sourceUrl)),
-                ),
-              ],
               if (onAdd != null) ...[
                 SizedBox(height: 18),
                 BouncyGymButton(

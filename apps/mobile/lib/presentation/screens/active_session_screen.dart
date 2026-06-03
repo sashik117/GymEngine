@@ -1092,10 +1092,7 @@ class _TechniquePeek extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = exercise.imageUrl.trim();
-    final hasMedia =
-        imageUrl.isNotEmpty ||
-        exercise.videoUrl.trim().isNotEmpty ||
-        exercise.sourceUrl.trim().isNotEmpty;
+    final hasMedia = imageUrl.isNotEmpty || exercise.videoUrl.trim().isNotEmpty;
 
     return InkWell(
       onTap: () => showExerciseDetailSheet(
