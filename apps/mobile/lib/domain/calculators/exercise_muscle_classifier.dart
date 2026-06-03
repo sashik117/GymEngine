@@ -99,7 +99,15 @@ class ExerciseMuscleClassifier {
     if (has(['neck', 'шия'])) {
       return 'Neck';
     }
-    if (has(['wrist', 'forearm', 'finger curl', 'farmer', 'передпліч'])) {
+    if (has([
+      'wrist',
+      'forearm',
+      'finger',
+      'fingers',
+      'finger curl',
+      'farmer',
+      'передпліч',
+    ])) {
       return 'Forearms';
     }
     if (has(['crunch', 'plank', 'abs', 'sit up', 'leg raise', 'прес'])) {

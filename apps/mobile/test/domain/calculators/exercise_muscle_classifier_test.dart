@@ -26,6 +26,18 @@ void main() {
         ExerciseMuscleClassifier.classify(exerciseName: 'Hip thrust'),
         'Glutes',
       );
+      expect(
+        ExerciseMuscleClassifier.inferPrimaryMuscleFromName(
+          'Separation Between Fingers Stretch',
+        ),
+        'Forearms',
+      );
+      expect(
+        ExerciseMuscleClassifier.inferPrimaryMuscleFromName(
+          'Barbell Good Morning',
+        ),
+        'Posterior',
+      );
     });
   });
 }

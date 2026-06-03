@@ -140,6 +140,7 @@ class _EngineScreenState extends State<EngineScreen> {
                   photos: _progressPhotos,
                   isBusy: _isPhotoBusy,
                   onAdd: () => _addProgressPhoto(labels),
+                  onOpen: (photo) => _openProgressPhoto(labels, photo),
                   onDelete: (photo) => _deleteProgressPhoto(labels, photo),
                 ),
               ],
@@ -350,12 +351,26 @@ class _EngineScreenState extends State<EngineScreen> {
         return;
       }
 
-      await repository.addProgressPhoto(
-        imageDataUrl: gymImageDataUrlFromBytes(
-          bytes: picked.bytes,
-          mimeType: picked.mimeType,
+      final imageDataUrl = gymImageDataUrlFromBytes(
+        bytes: picked.bytes,
+        mimeType: picked.mimeType,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      final note = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => _ProgressPhotoNoteDialog(
+          labels: labels,
+          imageDataUrl: imageDataUrl,
         ),
       );
+      if (note == null || note.trim().isEmpty) {
+        return;
+      }
+
+      await repository.addProgressPhoto(imageDataUrl: imageDataUrl, note: note);
       await _loadProgressPhotos();
       if (!mounted) {
         return;
@@ -401,6 +416,14 @@ class _EngineScreenState extends State<EngineScreen> {
         });
       }
     }
+  }
+
+  void _openProgressPhoto(GymLabels labels, ProgressPhoto photo) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) =>
+          _ProgressPhotoViewer(labels: labels, photo: photo),
+    );
   }
 }
 
@@ -545,6 +568,7 @@ class _ProgressOverviewStats extends StatelessWidget {
             for (final card in cards)
               SizedBox(
                 width: itemWidth,
+                height: 124,
                 child: _EngineStatCard(
                   icon: card.icon,
                   label: card.label,
@@ -1518,6 +1542,82 @@ class _ChallengePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final challenges = _buildChallenges();
+    final previewChallenges = challenges.take(3).toList();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    labels.t('challenges'),
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _AllChallengesScreen(
+                        labels: labels,
+                        challenges: challenges,
+                      ),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.lime,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                  child: Text(
+                    labels.t('more'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10),
+            Column(
+              children: [
+                for (final entry in previewChallenges.indexed) ...[
+                  _ChallengeRow(
+                    icon: entry.$2.icon,
+                    title: entry.$2.title,
+                    value: entry.$2.value,
+                    reward: entry.$2.reward,
+                    progress: entry.$2.progress,
+                    compact: true,
+                  ),
+                  if (entry.$1 != previewChallenges.length - 1)
+                    SizedBox(height: 9),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_ProgressChallenge> _buildChallenges() {
     final streakProgress = (snapshot.currentStreakDays / 3).clamp(0.0, 1.0);
     final monthSetCount = monthStats.fold<int>(
       0,
@@ -1545,35 +1645,52 @@ class _ChallengePanel extends StatelessWidget {
       'Forearms',
     ]);
     final coreProgress = _groupProgress(monthStats, ['Core']);
-    final challenges = [
+    return [
       _ProgressChallenge(
         icon: Icons.local_fire_department,
         title: labels.t('streakChallenge'),
         value: '${snapshot.currentStreakDays}/3',
+        reward: _challengeText(
+          labels,
+          'Бейдж: стабільний ритм',
+          'Badge: steady rhythm',
+        ),
         progress: streakProgress,
       ),
       _ProgressChallenge(
         icon: Icons.calendar_month,
         title: labels.t('weeklyChallenge'),
         value: '${snapshot.weeklyWorkoutCount}/3',
+        reward: _challengeText(labels, '+50 XP за тиждень', '+50 XP weekly'),
         progress: (snapshot.weeklyWorkoutCount / 3).clamp(0.0, 1.0),
       ),
       _ProgressChallenge(
         icon: Icons.event_available,
         title: _challengeText(labels, 'Місячний ритм', 'Monthly rhythm'),
         value: '$monthWorkoutCount/8',
+        reward: _challengeText(
+          labels,
+          'Титул: залізний місяць',
+          'Title: iron month',
+        ),
         progress: (monthWorkoutCount / 8).clamp(0.0, 1.0),
       ),
       _ProgressChallenge(
         icon: Icons.done_all,
         title: _challengeText(labels, '30 підходів', '30 sets'),
         value: '$monthSetCount/30',
+        reward: _challengeText(labels, '+30 XP за обʼєм', '+30 XP volume'),
         progress: (monthSetCount / 30).clamp(0.0, 1.0),
       ),
       _ProgressChallenge(
         icon: Icons.timer,
         title: labels.t('timeChallenge'),
         value: _formatTrainingTime(snapshot.totalTrainingSeconds),
+        reward: _challengeText(
+          labels,
+          'Бейдж: робоча година',
+          'Badge: time under tension',
+        ),
         progress: (snapshot.totalTrainingSeconds / (60 * 60 * 3)).clamp(
           0.0,
           1.0,
@@ -1583,89 +1700,57 @@ class _ChallengePanel extends StatelessWidget {
         icon: Icons.fitness_center,
         title: _challengeText(labels, 'Місячна робота', 'Monthly load'),
         value: formatKg(monthVolumeKg, unit: labels.t('kg')),
+        reward: _challengeText(labels, 'Трофей: тоннаж', 'Trophy: tonnage'),
         progress: (monthVolumeKg / 10000).clamp(0.0, 1.0),
       ),
       _ProgressChallenge(
         icon: Icons.radar,
         title: labels.t('balanceChallenge'),
         value: '$activeSectorCount/12',
+        reward: _challengeText(
+          labels,
+          'Бейдж: баланс тіла',
+          'Badge: body balance',
+        ),
         progress: (activeSectorCount / 12).clamp(0.0, 1.0),
       ),
       _ProgressChallenge(
         icon: Icons.directions_run,
         title: _challengeText(labels, 'Ноги закриті', 'Lower body lock'),
         value: '${(lowerBodyProgress * 100).round()}%',
+        reward: _challengeText(
+          labels,
+          '+25 XP за низ тіла',
+          '+25 XP lower body',
+        ),
         progress: lowerBodyProgress,
       ),
       _ProgressChallenge(
         icon: Icons.north_east,
         title: _challengeText(labels, 'Push-сектор', 'Push sector'),
         value: '${(pushProgress * 100).round()}%',
+        reward: _challengeText(labels, '+25 XP за push', '+25 XP push'),
         progress: pushProgress,
       ),
       _ProgressChallenge(
         icon: Icons.south_west,
         title: _challengeText(labels, 'Pull-сектор', 'Pull sector'),
         value: '${(pullProgress * 100).round()}%',
+        reward: _challengeText(labels, '+25 XP за pull', '+25 XP pull'),
         progress: pullProgress,
       ),
       _ProgressChallenge(
         icon: Icons.hexagon,
         title: _challengeText(labels, 'Core контроль', 'Core control'),
         value: '${(coreProgress * 100).round()}%',
+        reward: _challengeText(
+          labels,
+          'Бейдж: міцний центр',
+          'Badge: strong core',
+        ),
         progress: coreProgress,
       ),
     ];
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              labels.t('challenges'),
-              style: TextStyle(
-                color: AppColors.muted,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-              ),
-            ),
-            SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final twoColumns = constraints.maxWidth >= 320;
-                final itemWidth = twoColumns
-                    ? (constraints.maxWidth - 10) / 2
-                    : constraints.maxWidth;
-                return Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final challenge in challenges)
-                      SizedBox(
-                        width: itemWidth,
-                        child: _ChallengeRow(
-                          icon: challenge.icon,
-                          title: challenge.title,
-                          value: challenge.value,
-                          progress: challenge.progress,
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   int _activeSectorCount(List<ExerciseWeightStats> stats) {
@@ -1696,12 +1781,14 @@ class _ProgressChallenge {
     required this.icon,
     required this.title,
     required this.value,
+    required this.reward,
     required this.progress,
   });
 
   final IconData icon;
   final String title;
   final String value;
+  final String reward;
   final double progress;
 }
 
@@ -1710,82 +1797,194 @@ class _ChallengeRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
+    required this.reward,
     required this.progress,
+    this.compact = false,
   });
 
   final IconData icon;
   final String title;
   final String value;
+  final String reward;
   final double progress;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final safeProgress = progress.clamp(0.0, 1.0);
+    final isDone = safeProgress >= 1;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.lime.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.lime.withValues(alpha: 0.35),
+    return SizedBox(
+      height: compact ? 78 : 132,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          border: Border.all(color: isDone ? AppColors.lime : AppColors.border),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 9 : 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.lime.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.lime.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(compact ? 6 : 7),
+                      child: Icon(icon, color: AppColors.lime, size: 18),
                     ),
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.all(6),
-                    child: Icon(icon, color: AppColors.lime, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: compact ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 12 : 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    value,
+                  SizedBox(width: 8),
+                  Text(
+                    isDone ? '✓' : value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       color: AppColors.lime,
+                      fontSize: compact ? 12 : 14,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+              if (!compact) ...[
+                SizedBox(height: 9),
+                Text(
+                  reward,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+              Spacer(),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: safeProgress,
+                  minHeight: 5,
+                  backgroundColor: AppColors.black,
+                  color: safeProgress >= 1
+                      ? AppColors.accentStrong
+                      : AppColors.lime,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AllChallengesScreen extends StatelessWidget {
+  const _AllChallengesScreen({required this.labels, required this.challenges});
+
+  final GymLabels labels;
+  final List<_ProgressChallenge> challenges;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 28),
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        labels.t('allChallenges'),
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        labels.language == GymLanguage.uk
+                            ? 'Виконуй цілі, забирай нагороди й тримай ритм.'
+                            : 'Complete goals, earn rewards, and keep rhythm.',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(Icons.close),
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.text,
+                    backgroundColor: AppColors.panel,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 9),
-            Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-              ),
-            ),
-            SizedBox(height: 9),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: safeProgress,
-                minHeight: 5,
-                backgroundColor: AppColors.black,
-                color: safeProgress >= 1
-                    ? AppColors.accentStrong
-                    : AppColors.lime,
-              ),
+            SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final twoColumns = constraints.maxWidth >= 520;
+                final gap = 10.0;
+                final itemWidth = twoColumns
+                    ? (constraints.maxWidth - gap) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final challenge in challenges)
+                      SizedBox(
+                        width: itemWidth,
+                        child: _ChallengeRow(
+                          icon: challenge.icon,
+                          title: challenge.title,
+                          value: challenge.value,
+                          reward: '${labels.t('reward')}: ${challenge.reward}',
+                          progress: challenge.progress,
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -2691,6 +2890,7 @@ class _PhotoProgressPanel extends StatelessWidget {
     required this.photos,
     required this.isBusy,
     required this.onAdd,
+    required this.onOpen,
     required this.onDelete,
   });
 
@@ -2698,6 +2898,7 @@ class _PhotoProgressPanel extends StatelessWidget {
   final List<ProgressPhoto> photos;
   final bool isBusy;
   final VoidCallback onAdd;
+  final ValueChanged<ProgressPhoto> onOpen;
   final ValueChanged<ProgressPhoto> onDelete;
 
   @override
@@ -2785,6 +2986,7 @@ class _PhotoProgressPanel extends StatelessWidget {
                           _ProgressPhotoCard(
                             labels: labels,
                             photo: entry.$2,
+                            onOpen: () => onOpen(entry.$2),
                             onDelete: () => onDelete(entry.$2),
                           ),
                           if (entry.$1 != photos.length - 1)
@@ -2839,74 +3041,94 @@ class _ProgressPhotoCard extends StatelessWidget {
   const _ProgressPhotoCard({
     required this.labels,
     required this.photo,
+    required this.onOpen,
     required this.onDelete,
   });
 
   final GymLabels labels;
   final ProgressPhoto photo;
+  final VoidCallback onOpen;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(10),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: SizedBox(
-                width: 92,
-                height: 116,
-                child: GymExerciseImage(
-                  imageUrl: photo.imageDataUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: AppColors.surface,
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.broken_image_outlined,
-                        color: AppColors.muted,
-                      ),
-                    );
-                  },
+    return InkWell(
+      onTap: onOpen,
+      borderRadius: BorderRadius.circular(6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(10),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: SizedBox(
+                  width: 92,
+                  height: 116,
+                  child: GymExerciseImage(
+                    imageUrl: photo.imageDataUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: AppColors.surface,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.muted,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    labels.t('photoDate'),
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            labels.t('photoDate'),
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.open_in_full,
+                          color: AppColors.lime,
+                          size: 16,
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    _formatProgressPhotoDate(labels.language, photo.capturedAt),
-                    style: TextStyle(
-                      color: AppColors.text,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
+                    SizedBox(height: 6),
+                    Text(
+                      _formatProgressPhotoDate(
+                        labels.language,
+                        photo.capturedAt,
+                      ),
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
                     ),
-                  ),
-                  if (photo.note.trim().isNotEmpty) ...[
                     SizedBox(height: 8),
                     Text(
-                      photo.note,
+                      photo.note.trim().isEmpty
+                          ? labels.t('photoCommentRequired')
+                          : photo.note,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -2916,13 +3138,201 @@ class _ProgressPhotoCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: Icon(Icons.delete_outline, color: AppColors.lime),
+                tooltip: labels.t('deleteProgressPhoto'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressPhotoNoteDialog extends StatefulWidget {
+  const _ProgressPhotoNoteDialog({
+    required this.labels,
+    required this.imageDataUrl,
+  });
+
+  final GymLabels labels;
+  final String imageDataUrl;
+
+  @override
+  State<_ProgressPhotoNoteDialog> createState() =>
+      _ProgressPhotoNoteDialogState();
+}
+
+class _ProgressPhotoNoteDialogState extends State<_ProgressPhotoNoteDialog> {
+  final _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = widget.labels;
+    final canSave = _noteController.text.trim().isNotEmpty;
+
+    return AlertDialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      backgroundColor: AppColors.surface,
+      title: Text(
+        labels.t('photoComment'),
+        style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 220,
+                height: 280,
+                child: GymExerciseImage(
+                  imageUrl: widget.imageDataUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: labels.t('photoComment'),
+                hintText: labels.t('photoCommentHint'),
+                errorText: _noteController.text.isEmpty || canSave
+                    ? null
+                    : labels.t('photoCommentRequired'),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.lime),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(labels.t('cancel')),
+        ),
+        FilledButton(
+          onPressed: canSave
+              ? () => Navigator.of(context).pop(_noteController.text.trim())
+              : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.lime,
+            foregroundColor: AppColors.ink,
+          ),
+          child: Text(labels.t('savePhoto')),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProgressPhotoViewer extends StatelessWidget {
+  const _ProgressPhotoViewer({required this.labels, required this.photo});
+
+  final GymLabels labels;
+  final ProgressPhoto photo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: AppColors.black,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(14, 10, 14, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _formatProgressPhotoDate(
+                        labels.language,
+                        photo.capturedAt,
+                      ),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close),
+                    tooltip: labels.t('cancel'),
+                    style: IconButton.styleFrom(
+                      foregroundColor: AppColors.text,
+                      backgroundColor: AppColors.panel,
+                    ),
+                  ),
                 ],
               ),
             ),
-            IconButton(
-              onPressed: onDelete,
-              icon: Icon(Icons.delete_outline, color: AppColors.lime),
-              tooltip: labels.t('deleteProgressPhoto'),
+            Expanded(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4,
+                child: Center(
+                  child: GymExerciseImage(
+                    imageUrl: photo.imageDataUrl,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(18, 14, 18, 18),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    labels.t('photoComment'),
+                    style: TextStyle(
+                      color: AppColors.lime,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    photo.note.trim().isEmpty
+                        ? labels.t('photoCommentRequired')
+                        : photo.note,
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

@@ -24,8 +24,7 @@ String exerciseDedupeKey(Exercise exercise, GymLabels labels) {
   final name = normalizeExerciseLookup(
     translated.isEmpty ? exercise.name : translated,
   );
-  final equipment = normalizeExerciseLookup(exercise.equipment);
-  return '$name|${exercise.primaryMuscle}|$equipment';
+  return '$name|${exercise.primaryMuscle}';
 }
 
 int exerciseCatalogQuality(Exercise exercise) {

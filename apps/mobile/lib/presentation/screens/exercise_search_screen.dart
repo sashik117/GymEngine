@@ -790,7 +790,6 @@ class _CustomExerciseDialogState extends State<_CustomExerciseDialog> {
   final _muscleController = TextEditingController();
   final _equipmentController = TextEditingController();
   final _imageController = TextEditingController();
-  final _videoController = TextEditingController();
   var _isSaving = false;
   var _isPickingPhoto = false;
 
@@ -800,7 +799,6 @@ class _CustomExerciseDialogState extends State<_CustomExerciseDialog> {
     _muscleController.dispose();
     _equipmentController.dispose();
     _imageController.dispose();
-    _videoController.dispose();
     super.dispose();
   }
 
@@ -817,7 +815,7 @@ class _CustomExerciseDialogState extends State<_CustomExerciseDialog> {
           : _muscleController.text,
       equipment: _equipmentController.text,
       imageUrl: _imageController.text,
-      videoUrl: _videoController.text,
+      videoUrl: '',
     );
     if (!mounted) {
       return;
@@ -888,11 +886,6 @@ class _CustomExerciseDialogState extends State<_CustomExerciseDialog> {
                 _imageController.clear();
                 setState(() {});
               },
-            ),
-            SizedBox(height: 10),
-            _DialogField(
-              controller: _videoController,
-              label: _text(labels, uk: 'Відео URL', en: 'Video URL'),
             ),
           ],
         ),

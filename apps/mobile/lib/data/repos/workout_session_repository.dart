@@ -976,14 +976,14 @@ class WorkoutSessionRepository {
         .replaceAll(' ', '_')
         .replaceAll('__', '_');
     final matches = RegExp(
-      r'(^|_)(calves?|chest|back|waist|hips?|shoulders?|upper_arms?|forearms?|thighs?|neck)(_|\.|$)',
+      r'(^|_)(calves?|claves|feet|chest|back|waist|hips?|shoulders?|upper_arms?|forearms?|thighs?|neck)(_|\.|$)',
     ).allMatches(normalized).toList();
     if (matches.isEmpty) {
       return null;
     }
 
     return switch (matches.last.group(2)) {
-      'calf' || 'calves' => 'Calves',
+      'calf' || 'calves' || 'claves' || 'feet' => 'Calves',
       'chest' => 'Chest',
       'back' => 'Back',
       'waist' => 'Waist',
