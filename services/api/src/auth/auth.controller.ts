@@ -1,38 +1,38 @@
 import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  AuthCodeRequest,
-  AuthCodeVerification,
-  AuthCredentials,
-  PasswordResetConfirmation,
-} from './auth.types';
+  AuthCodeRequestDto,
+  AuthCodeVerificationDto,
+  AuthCredentialsDto,
+  PasswordResetConfirmationDto,
+} from './auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  register(@Body() credentials: AuthCredentials) {
+  register(@Body() credentials: AuthCredentialsDto) {
     return this.authService.register(credentials);
   }
 
   @Post('register/verify')
-  verifyRegistrationCode(@Body() payload: AuthCodeVerification) {
+  verifyRegistrationCode(@Body() payload: AuthCodeVerificationDto) {
     return this.authService.verifyRegistrationCode(payload);
   }
 
   @Post('login')
-  login(@Body() credentials: AuthCredentials) {
+  login(@Body() credentials: AuthCredentialsDto) {
     return this.authService.login(credentials);
   }
 
   @Post('password-reset')
-  requestPasswordReset(@Body() payload: AuthCodeRequest) {
+  requestPasswordReset(@Body() payload: AuthCodeRequestDto) {
     return this.authService.requestPasswordReset(payload);
   }
 
   @Post('password-reset/confirm')
-  confirmPasswordReset(@Body() payload: PasswordResetConfirmation) {
+  confirmPasswordReset(@Body() payload: PasswordResetConfirmationDto) {
     return this.authService.confirmPasswordReset(payload);
   }
 

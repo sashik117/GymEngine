@@ -7,11 +7,12 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:apk:secure": "cd apps/mobile && ..\\..\\src\\flutter\\bin\\flutter.bat build apk --release --obfuscate --split-debug-info=..\\..\\release\\debug-info",
+    "test": "cd services/api && npm test"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "devDependencies": {
     "playwright": "^1.60.0",
     "playwright-core": "^1.60.0"

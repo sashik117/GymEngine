@@ -58,6 +58,7 @@ The app is built around practical gym behavior: poor internet in a basement gym,
 - Node.js
 - NestJS
 - TypeScript
+- ValidationPipe DTO validation
 - JWT-style token authentication
 - Email-code auth flow
 - File-backed development storage with PostgreSQL-ready architecture direction
@@ -152,6 +153,30 @@ For local development without SMTP credentials, the API exposes development code
 
 ---
 
+## Security
+
+- Android release builds use Dart obfuscation with split debug info.
+- NestJS uses a global `ValidationPipe` with `whitelist: true` and `forbidNonWhitelisted: true`.
+- Auth endpoints use DTO classes, so unexpected request fields are rejected before service logic.
+- User workout backups are scoped by authenticated user ID.
+- Local `.env`, `.data`, build artifacts, APKs, and debug symbols are ignored by Git.
+
+Secure Android APK build:
+
+```bash
+npm run build:apk:secure
+```
+
+Debug symbols are written to:
+
+```text
+release/debug-info/
+```
+
+Keep that folder private. It is needed only if an obfuscated crash stack trace must be decoded.
+
+---
+
 ## 🚀 Local Development
 
 ### API
@@ -196,7 +221,7 @@ cd apps/mobile
 flutter analyze lib test
 flutter test
 flutter build web --release
-flutter build apk --release
+npm run build:apk:secure
 ```
 
 ### Backend
@@ -229,6 +254,12 @@ Latest release APK path after build:
 apps/mobile/build/app/outputs/flutter-apk/app-release.apk
 ```
 
+The portfolio copy is stored locally at:
+
+```text
+release/GymEngine-latest.apk
+```
+
 ---
 
 ## 🌍 Live Demo
@@ -251,3 +282,9 @@ Deployment is planned. Current validation is focused on local API, web preview, 
 
 - GitHub: [@sashik117](https://github.com/sashik117)
 - Email: `sanyoklolik@gmail.com`
+
+---
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 or later. See [LICENSE](LICENSE).
