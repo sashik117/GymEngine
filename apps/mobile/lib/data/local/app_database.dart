@@ -12,6 +12,9 @@ class WorkoutSessions extends Table {
   DateTimeColumn get finishedAt => dateTime().nullable()();
   TextColumn get templateName => text().nullable()();
   IntColumn get templateDayNumber => integer().nullable()();
+  TextColumn get selectedExerciseId => text().nullable()();
+  DateTimeColumn get restEndsAt => dateTime().nullable()();
+  IntColumn get restDurationSeconds => integer().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 
   @override
@@ -122,7 +125,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -207,6 +210,17 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 13) {
           await migrator.createTable(progressPhotoEntries);
+        }
+        if (from < 14) {
+          await migrator.addColumn(
+            workoutSessions,
+            workoutSessions.selectedExerciseId,
+          );
+          await migrator.addColumn(workoutSessions, workoutSessions.restEndsAt);
+          await migrator.addColumn(
+            workoutSessions,
+            workoutSessions.restDurationSeconds,
+          );
         }
       },
     );

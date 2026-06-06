@@ -62,6 +62,38 @@ class $WorkoutSessionsTable extends WorkoutSessions
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _selectedExerciseIdMeta =
+      const VerificationMeta('selectedExerciseId');
+  @override
+  late final GeneratedColumn<String> selectedExerciseId =
+      GeneratedColumn<String>(
+        'selected_exercise_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _restEndsAtMeta = const VerificationMeta(
+    'restEndsAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> restEndsAt = GeneratedColumn<DateTime>(
+    'rest_ends_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _restDurationSecondsMeta =
+      const VerificationMeta('restDurationSeconds');
+  @override
+  late final GeneratedColumn<int> restDurationSeconds = GeneratedColumn<int>(
+    'rest_duration_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _syncStatusMeta = const VerificationMeta(
     'syncStatus',
   );
@@ -81,6 +113,9 @@ class $WorkoutSessionsTable extends WorkoutSessions
     finishedAt,
     templateName,
     templateDayNumber,
+    selectedExerciseId,
+    restEndsAt,
+    restDurationSeconds,
     syncStatus,
   ];
   @override
@@ -132,6 +167,33 @@ class $WorkoutSessionsTable extends WorkoutSessions
         ),
       );
     }
+    if (data.containsKey('selected_exercise_id')) {
+      context.handle(
+        _selectedExerciseIdMeta,
+        selectedExerciseId.isAcceptableOrUnknown(
+          data['selected_exercise_id']!,
+          _selectedExerciseIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rest_ends_at')) {
+      context.handle(
+        _restEndsAtMeta,
+        restEndsAt.isAcceptableOrUnknown(
+          data['rest_ends_at']!,
+          _restEndsAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rest_duration_seconds')) {
+      context.handle(
+        _restDurationSecondsMeta,
+        restDurationSeconds.isAcceptableOrUnknown(
+          data['rest_duration_seconds']!,
+          _restDurationSecondsMeta,
+        ),
+      );
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
         _syncStatusMeta,
@@ -167,6 +229,18 @@ class $WorkoutSessionsTable extends WorkoutSessions
         DriftSqlType.int,
         data['${effectivePrefix}template_day_number'],
       ),
+      selectedExerciseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}selected_exercise_id'],
+      ),
+      restEndsAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}rest_ends_at'],
+      ),
+      restDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rest_duration_seconds'],
+      ),
       syncStatus: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
@@ -186,6 +260,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
   final DateTime? finishedAt;
   final String? templateName;
   final int? templateDayNumber;
+  final String? selectedExerciseId;
+  final DateTime? restEndsAt;
+  final int? restDurationSeconds;
   final String syncStatus;
   const WorkoutSession({
     required this.id,
@@ -193,6 +270,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     this.finishedAt,
     this.templateName,
     this.templateDayNumber,
+    this.selectedExerciseId,
+    this.restEndsAt,
+    this.restDurationSeconds,
     required this.syncStatus,
   });
   @override
@@ -208,6 +288,15 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     }
     if (!nullToAbsent || templateDayNumber != null) {
       map['template_day_number'] = Variable<int>(templateDayNumber);
+    }
+    if (!nullToAbsent || selectedExerciseId != null) {
+      map['selected_exercise_id'] = Variable<String>(selectedExerciseId);
+    }
+    if (!nullToAbsent || restEndsAt != null) {
+      map['rest_ends_at'] = Variable<DateTime>(restEndsAt);
+    }
+    if (!nullToAbsent || restDurationSeconds != null) {
+      map['rest_duration_seconds'] = Variable<int>(restDurationSeconds);
     }
     map['sync_status'] = Variable<String>(syncStatus);
     return map;
@@ -226,6 +315,15 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       templateDayNumber: templateDayNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(templateDayNumber),
+      selectedExerciseId: selectedExerciseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(selectedExerciseId),
+      restEndsAt: restEndsAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restEndsAt),
+      restDurationSeconds: restDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restDurationSeconds),
       syncStatus: Value(syncStatus),
     );
   }
@@ -241,6 +339,13 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       finishedAt: serializer.fromJson<DateTime?>(json['finishedAt']),
       templateName: serializer.fromJson<String?>(json['templateName']),
       templateDayNumber: serializer.fromJson<int?>(json['templateDayNumber']),
+      selectedExerciseId: serializer.fromJson<String?>(
+        json['selectedExerciseId'],
+      ),
+      restEndsAt: serializer.fromJson<DateTime?>(json['restEndsAt']),
+      restDurationSeconds: serializer.fromJson<int?>(
+        json['restDurationSeconds'],
+      ),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
@@ -253,6 +358,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       'finishedAt': serializer.toJson<DateTime?>(finishedAt),
       'templateName': serializer.toJson<String?>(templateName),
       'templateDayNumber': serializer.toJson<int?>(templateDayNumber),
+      'selectedExerciseId': serializer.toJson<String?>(selectedExerciseId),
+      'restEndsAt': serializer.toJson<DateTime?>(restEndsAt),
+      'restDurationSeconds': serializer.toJson<int?>(restDurationSeconds),
       'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
@@ -263,6 +371,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     Value<DateTime?> finishedAt = const Value.absent(),
     Value<String?> templateName = const Value.absent(),
     Value<int?> templateDayNumber = const Value.absent(),
+    Value<String?> selectedExerciseId = const Value.absent(),
+    Value<DateTime?> restEndsAt = const Value.absent(),
+    Value<int?> restDurationSeconds = const Value.absent(),
     String? syncStatus,
   }) => WorkoutSession(
     id: id ?? this.id,
@@ -272,6 +383,13 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     templateDayNumber: templateDayNumber.present
         ? templateDayNumber.value
         : this.templateDayNumber,
+    selectedExerciseId: selectedExerciseId.present
+        ? selectedExerciseId.value
+        : this.selectedExerciseId,
+    restEndsAt: restEndsAt.present ? restEndsAt.value : this.restEndsAt,
+    restDurationSeconds: restDurationSeconds.present
+        ? restDurationSeconds.value
+        : this.restDurationSeconds,
     syncStatus: syncStatus ?? this.syncStatus,
   );
   WorkoutSession copyWithCompanion(WorkoutSessionsCompanion data) {
@@ -287,6 +405,15 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       templateDayNumber: data.templateDayNumber.present
           ? data.templateDayNumber.value
           : this.templateDayNumber,
+      selectedExerciseId: data.selectedExerciseId.present
+          ? data.selectedExerciseId.value
+          : this.selectedExerciseId,
+      restEndsAt: data.restEndsAt.present
+          ? data.restEndsAt.value
+          : this.restEndsAt,
+      restDurationSeconds: data.restDurationSeconds.present
+          ? data.restDurationSeconds.value
+          : this.restDurationSeconds,
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
@@ -301,6 +428,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
           ..write('finishedAt: $finishedAt, ')
           ..write('templateName: $templateName, ')
           ..write('templateDayNumber: $templateDayNumber, ')
+          ..write('selectedExerciseId: $selectedExerciseId, ')
+          ..write('restEndsAt: $restEndsAt, ')
+          ..write('restDurationSeconds: $restDurationSeconds, ')
           ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
@@ -313,6 +443,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     finishedAt,
     templateName,
     templateDayNumber,
+    selectedExerciseId,
+    restEndsAt,
+    restDurationSeconds,
     syncStatus,
   );
   @override
@@ -324,6 +457,9 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
           other.finishedAt == this.finishedAt &&
           other.templateName == this.templateName &&
           other.templateDayNumber == this.templateDayNumber &&
+          other.selectedExerciseId == this.selectedExerciseId &&
+          other.restEndsAt == this.restEndsAt &&
+          other.restDurationSeconds == this.restDurationSeconds &&
           other.syncStatus == this.syncStatus);
 }
 
@@ -333,6 +469,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
   final Value<DateTime?> finishedAt;
   final Value<String?> templateName;
   final Value<int?> templateDayNumber;
+  final Value<String?> selectedExerciseId;
+  final Value<DateTime?> restEndsAt;
+  final Value<int?> restDurationSeconds;
   final Value<String> syncStatus;
   final Value<int> rowid;
   const WorkoutSessionsCompanion({
@@ -341,6 +480,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     this.finishedAt = const Value.absent(),
     this.templateName = const Value.absent(),
     this.templateDayNumber = const Value.absent(),
+    this.selectedExerciseId = const Value.absent(),
+    this.restEndsAt = const Value.absent(),
+    this.restDurationSeconds = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -350,6 +492,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     this.finishedAt = const Value.absent(),
     this.templateName = const Value.absent(),
     this.templateDayNumber = const Value.absent(),
+    this.selectedExerciseId = const Value.absent(),
+    this.restEndsAt = const Value.absent(),
+    this.restDurationSeconds = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -360,6 +505,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     Expression<DateTime>? finishedAt,
     Expression<String>? templateName,
     Expression<int>? templateDayNumber,
+    Expression<String>? selectedExerciseId,
+    Expression<DateTime>? restEndsAt,
+    Expression<int>? restDurationSeconds,
     Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
@@ -369,6 +517,11 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
       if (finishedAt != null) 'finished_at': finishedAt,
       if (templateName != null) 'template_name': templateName,
       if (templateDayNumber != null) 'template_day_number': templateDayNumber,
+      if (selectedExerciseId != null)
+        'selected_exercise_id': selectedExerciseId,
+      if (restEndsAt != null) 'rest_ends_at': restEndsAt,
+      if (restDurationSeconds != null)
+        'rest_duration_seconds': restDurationSeconds,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
@@ -380,6 +533,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     Value<DateTime?>? finishedAt,
     Value<String?>? templateName,
     Value<int?>? templateDayNumber,
+    Value<String?>? selectedExerciseId,
+    Value<DateTime?>? restEndsAt,
+    Value<int?>? restDurationSeconds,
     Value<String>? syncStatus,
     Value<int>? rowid,
   }) {
@@ -389,6 +545,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
       finishedAt: finishedAt ?? this.finishedAt,
       templateName: templateName ?? this.templateName,
       templateDayNumber: templateDayNumber ?? this.templateDayNumber,
+      selectedExerciseId: selectedExerciseId ?? this.selectedExerciseId,
+      restEndsAt: restEndsAt ?? this.restEndsAt,
+      restDurationSeconds: restDurationSeconds ?? this.restDurationSeconds,
       syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
@@ -412,6 +571,15 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     if (templateDayNumber.present) {
       map['template_day_number'] = Variable<int>(templateDayNumber.value);
     }
+    if (selectedExerciseId.present) {
+      map['selected_exercise_id'] = Variable<String>(selectedExerciseId.value);
+    }
+    if (restEndsAt.present) {
+      map['rest_ends_at'] = Variable<DateTime>(restEndsAt.value);
+    }
+    if (restDurationSeconds.present) {
+      map['rest_duration_seconds'] = Variable<int>(restDurationSeconds.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -429,6 +597,9 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
           ..write('finishedAt: $finishedAt, ')
           ..write('templateName: $templateName, ')
           ..write('templateDayNumber: $templateDayNumber, ')
+          ..write('selectedExerciseId: $selectedExerciseId, ')
+          ..write('restEndsAt: $restEndsAt, ')
+          ..write('restDurationSeconds: $restDurationSeconds, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3724,6 +3895,9 @@ typedef $$WorkoutSessionsTableCreateCompanionBuilder =
       Value<DateTime?> finishedAt,
       Value<String?> templateName,
       Value<int?> templateDayNumber,
+      Value<String?> selectedExerciseId,
+      Value<DateTime?> restEndsAt,
+      Value<int?> restDurationSeconds,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -3734,6 +3908,9 @@ typedef $$WorkoutSessionsTableUpdateCompanionBuilder =
       Value<DateTime?> finishedAt,
       Value<String?> templateName,
       Value<int?> templateDayNumber,
+      Value<String?> selectedExerciseId,
+      Value<DateTime?> restEndsAt,
+      Value<int?> restDurationSeconds,
       Value<String> syncStatus,
       Value<int> rowid,
     });
@@ -3806,6 +3983,21 @@ class $$WorkoutSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get selectedExerciseId => $composableBuilder(
+    column: $table.selectedExerciseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get restEndsAt => $composableBuilder(
+    column: $table.restEndsAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get restDurationSeconds => $composableBuilder(
+    column: $table.restDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
@@ -3871,6 +4063,21 @@ class $$WorkoutSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get selectedExerciseId => $composableBuilder(
+    column: $table.selectedExerciseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get restEndsAt => $composableBuilder(
+    column: $table.restEndsAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get restDurationSeconds => $composableBuilder(
+    column: $table.restDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
@@ -3904,6 +4111,21 @@ class $$WorkoutSessionsTableAnnotationComposer
 
   GeneratedColumn<int> get templateDayNumber => $composableBuilder(
     column: $table.templateDayNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get selectedExerciseId => $composableBuilder(
+    column: $table.selectedExerciseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get restEndsAt => $composableBuilder(
+    column: $table.restEndsAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get restDurationSeconds => $composableBuilder(
+    column: $table.restDurationSeconds,
     builder: (column) => column,
   );
 
@@ -3974,6 +4196,9 @@ class $$WorkoutSessionsTableTableManager
                 Value<DateTime?> finishedAt = const Value.absent(),
                 Value<String?> templateName = const Value.absent(),
                 Value<int?> templateDayNumber = const Value.absent(),
+                Value<String?> selectedExerciseId = const Value.absent(),
+                Value<DateTime?> restEndsAt = const Value.absent(),
+                Value<int?> restDurationSeconds = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorkoutSessionsCompanion(
@@ -3982,6 +4207,9 @@ class $$WorkoutSessionsTableTableManager
                 finishedAt: finishedAt,
                 templateName: templateName,
                 templateDayNumber: templateDayNumber,
+                selectedExerciseId: selectedExerciseId,
+                restEndsAt: restEndsAt,
+                restDurationSeconds: restDurationSeconds,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),
@@ -3992,6 +4220,9 @@ class $$WorkoutSessionsTableTableManager
                 Value<DateTime?> finishedAt = const Value.absent(),
                 Value<String?> templateName = const Value.absent(),
                 Value<int?> templateDayNumber = const Value.absent(),
+                Value<String?> selectedExerciseId = const Value.absent(),
+                Value<DateTime?> restEndsAt = const Value.absent(),
+                Value<int?> restDurationSeconds = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorkoutSessionsCompanion.insert(
@@ -4000,6 +4231,9 @@ class $$WorkoutSessionsTableTableManager
                 finishedAt: finishedAt,
                 templateName: templateName,
                 templateDayNumber: templateDayNumber,
+                selectedExerciseId: selectedExerciseId,
+                restEndsAt: restEndsAt,
+                restDurationSeconds: restDurationSeconds,
                 syncStatus: syncStatus,
                 rowid: rowid,
               ),

@@ -117,6 +117,22 @@ void main() {
     expect(openSession.sets, hasLength(2));
     expect(openSession.sets.first.reps, 5);
 
+    final restEndsAt = startedAt.add(const Duration(minutes: 10));
+    await repository.updateOpenSessionState(
+      sessionId: sessionId,
+      selectedExerciseId: 'bench_press',
+      restEndsAt: restEndsAt,
+      restDurationSeconds: 120,
+      updateSelectedExercise: true,
+      updateRest: true,
+    );
+    final restoredOpenSession = await repository.loadOpenSession(
+      templateDayNumber: 1,
+    );
+    expect(restoredOpenSession!.selectedExerciseId, 'bench_press');
+    expect(restoredOpenSession.restEndsAt, restEndsAt);
+    expect(restoredOpenSession.restDurationSeconds, 120);
+
     final finishedAt = startedAt.add(const Duration(minutes: 45));
     await repository.finishSession(
       sessionId: sessionId,

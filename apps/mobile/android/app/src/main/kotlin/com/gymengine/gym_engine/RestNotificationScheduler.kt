@@ -59,7 +59,16 @@ object RestNotificationScheduler {
         val triggerAt = System.currentTimeMillis() + seconds.coerceAtLeast(1) * 1000L
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            alarmManager.canScheduleExactAlarms()
+        ) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                pendingIntent
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerAt,

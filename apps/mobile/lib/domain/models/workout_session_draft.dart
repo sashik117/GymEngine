@@ -9,6 +9,9 @@ class WorkoutSessionDraft extends Equatable {
     required this.sets,
     this.templateName,
     this.templateDayNumber,
+    this.selectedExerciseId,
+    this.restEndsAt,
+    this.restDurationSeconds,
   });
 
   final String sessionId;
@@ -16,6 +19,9 @@ class WorkoutSessionDraft extends Equatable {
   final List<WorkoutSet> sets;
   final String? templateName;
   final int? templateDayNumber;
+  final String? selectedExerciseId;
+  final DateTime? restEndsAt;
+  final int? restDurationSeconds;
 
   @override
   List<Object?> get props => [
@@ -24,5 +30,8 @@ class WorkoutSessionDraft extends Equatable {
     sets,
     templateName,
     templateDayNumber,
+    selectedExerciseId,
+    restEndsAt,
+    restDurationSeconds,
   ];
 }

@@ -30,6 +30,9 @@ class SessionCubit extends Cubit<SessionState> {
           startedAt: openSession.startedAt,
           sessionId: openSession.sessionId,
           sets: openSession.sets,
+          selectedExerciseId: openSession.selectedExerciseId,
+          restEndsAt: openSession.restEndsAt,
+          restDurationSeconds: openSession.restDurationSeconds,
         ),
       );
       return;
@@ -41,6 +44,52 @@ class SessionCubit extends Cubit<SessionState> {
       templateDayNumber: _plan?.dayNumber,
     );
     emit(state.copyWith(sessionId: sessionId));
+  }
+
+  Future<void> selectExercise(String exerciseId) async {
+    final sessionId = await _ensureSessionId();
+    await _repository.updateOpenSessionState(
+      sessionId: sessionId,
+      selectedExerciseId: exerciseId,
+      updateSelectedExercise: true,
+    );
+    emit(state.copyWith(selectedExerciseId: exerciseId));
+  }
+
+  Future<void> startRest({
+    required String selectedExerciseId,
+    required DateTime restEndsAt,
+    required int restDurationSeconds,
+  }) async {
+    final sessionId = await _ensureSessionId();
+    await _repository.updateOpenSessionState(
+      sessionId: sessionId,
+      selectedExerciseId: selectedExerciseId,
+      restEndsAt: restEndsAt,
+      restDurationSeconds: restDurationSeconds,
+      updateSelectedExercise: true,
+      updateRest: true,
+    );
+    emit(
+      state.copyWith(
+        selectedExerciseId: selectedExerciseId,
+        restEndsAt: restEndsAt,
+        restDurationSeconds: restDurationSeconds,
+      ),
+    );
+  }
+
+  Future<void> clearRest() async {
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      await _repository.updateOpenSessionState(
+        sessionId: sessionId,
+        selectedExerciseId: state.selectedExerciseId,
+        updateSelectedExercise: true,
+        clearRest: true,
+      );
+    }
+    emit(state.copyWith(clearRest: true));
   }
 
   Future<bool> logSet({

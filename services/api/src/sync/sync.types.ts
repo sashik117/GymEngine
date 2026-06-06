@@ -43,6 +43,9 @@ export type SyncSession = {
   finishedAt?: string | null;
   templateName?: string | null;
   templateDayNumber?: number | null;
+  selectedExerciseId?: string | null;
+  restEndsAt?: string | null;
+  restDurationSeconds?: number | null;
   syncStatus?: string;
 };
 

@@ -1415,6 +1415,9 @@ class WorkoutSessionRepository {
       startedAt: session.startedAt,
       templateName: session.templateName,
       templateDayNumber: session.templateDayNumber,
+      selectedExerciseId: session.selectedExerciseId,
+      restEndsAt: session.restEndsAt,
+      restDurationSeconds: session.restDurationSeconds,
       sets: [
         for (final row in rows)
           WorkoutSet(
@@ -1427,6 +1430,37 @@ class WorkoutSessionRepository {
           ),
       ],
     );
+  }
+
+  Future<void> updateOpenSessionState({
+    required String sessionId,
+    String? selectedExerciseId,
+    DateTime? restEndsAt,
+    int? restDurationSeconds,
+    bool updateSelectedExercise = false,
+    bool updateRest = false,
+    bool clearRest = false,
+  }) async {
+    await (_db.update(
+      _db.workoutSessions,
+    )..where((session) => session.id.equals(sessionId))).write(
+      WorkoutSessionsCompanion(
+        selectedExerciseId: updateSelectedExercise
+            ? Value(selectedExerciseId)
+            : const Value.absent(),
+        restEndsAt: clearRest
+            ? const Value(null)
+            : updateRest
+            ? Value(restEndsAt)
+            : const Value.absent(),
+        restDurationSeconds: clearRest
+            ? const Value(null)
+            : updateRest
+            ? Value(restDurationSeconds)
+            : const Value.absent(),
+      ),
+    );
+    unawaited(_autoSync());
   }
 
   Future<String> logSet({
@@ -1984,6 +2018,9 @@ class WorkoutSessionRepository {
             'finishedAt': row.finishedAt?.toIso8601String(),
             'templateName': row.templateName,
             'templateDayNumber': row.templateDayNumber,
+            'selectedExerciseId': row.selectedExerciseId,
+            'restEndsAt': row.restEndsAt?.toIso8601String(),
+            'restDurationSeconds': row.restDurationSeconds,
             'syncStatus': row.syncStatus,
           },
       ],
@@ -2096,6 +2133,13 @@ class WorkoutSessionRepository {
               finishedAt: Value(_nullableDate(row, 'finishedAt')),
               templateName: Value(_nullableString(row, 'templateName')),
               templateDayNumber: Value(_nullableInt(row['templateDayNumber'])),
+              selectedExerciseId: Value(
+                _nullableString(row, 'selectedExerciseId'),
+              ),
+              restEndsAt: Value(_nullableDate(row, 'restEndsAt')),
+              restDurationSeconds: Value(
+                _nullableInt(row['restDurationSeconds']),
+              ),
               syncStatus: Value(_string(row, 'syncStatus', fallback: 'synced')),
             ),
         ]);

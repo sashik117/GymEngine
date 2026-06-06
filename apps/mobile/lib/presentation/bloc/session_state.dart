@@ -6,6 +6,9 @@ class SessionState extends Equatable {
     required this.sets,
     this.sessionId,
     this.finishedAt,
+    this.selectedExerciseId,
+    this.restEndsAt,
+    this.restDurationSeconds,
   });
 
   factory SessionState.initial() {
@@ -16,6 +19,9 @@ class SessionState extends Equatable {
   final List<WorkoutSet> sets;
   final String? sessionId;
   final DateTime? finishedAt;
+  final String? selectedExerciseId;
+  final DateTime? restEndsAt;
+  final int? restDurationSeconds;
 
   int get setCount => sets.length;
 
@@ -47,15 +53,32 @@ class SessionState extends Equatable {
     String? sessionId,
     List<WorkoutSet>? sets,
     DateTime? finishedAt,
+    String? selectedExerciseId,
+    DateTime? restEndsAt,
+    int? restDurationSeconds,
+    bool clearRest = false,
   }) {
     return SessionState(
       startedAt: startedAt,
       sessionId: sessionId ?? this.sessionId,
       sets: sets ?? this.sets,
       finishedAt: finishedAt ?? this.finishedAt,
+      selectedExerciseId: selectedExerciseId ?? this.selectedExerciseId,
+      restEndsAt: clearRest ? null : restEndsAt ?? this.restEndsAt,
+      restDurationSeconds: clearRest
+          ? null
+          : restDurationSeconds ?? this.restDurationSeconds,
     );
   }
 
   @override
-  List<Object?> get props => [startedAt, sessionId, sets, finishedAt];
+  List<Object?> get props => [
+    startedAt,
+    sessionId,
+    sets,
+    finishedAt,
+    selectedExerciseId,
+    restEndsAt,
+    restDurationSeconds,
+  ];
 }

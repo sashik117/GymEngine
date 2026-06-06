@@ -36,7 +36,7 @@ class ActiveSessionScreen extends StatefulWidget {
 }
 
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
-  final _weightController = TextEditingController(text: '60');
+  final _weightController = TextEditingController();
   final _repsController = TextEditingController(text: '5');
   final _scrollController = ScrollController();
   List<TrainingPlanExercise> _exercises = const [];
@@ -48,6 +48,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   late int _restDurationSeconds;
   late _RestUnit _restUnit;
   int _restSeconds = 0;
+  DateTime? _restEndsAt;
   var _restFlash = false;
   var _didRestoreExerciseFromSession = false;
 
@@ -125,7 +126,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         _selectedExerciseIndex = 0;
       }
       if (_selectedExercise != null) {
-        _repsController.text = _selectedExercise!.targetReps.toString();
+        _applyInputsForExercise(_selectedExercise!, keepExistingWeight: false);
       }
     });
     _restoreExerciseFromSession(context.read<SessionCubit>().state);
@@ -133,17 +134,48 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   void _restoreExerciseFromSession(SessionState session) {
-    if (_didRestoreExerciseFromSession || _exercises.isEmpty) {
+    if (_exercises.isEmpty || session.sessionId == null) {
       return;
     }
 
+    final index =
+        _indexForExerciseId(session.selectedExerciseId) ??
+        _lastLoggedExerciseIndex(session) ??
+        _firstIncompleteExerciseIndex(session);
+    if (index != null && index != _selectedExerciseIndex) {
+      _selectExerciseAt(index, shouldScrollToTop: false, persist: false);
+    } else if (!_didRestoreExerciseFromSession && _selectedExercise != null) {
+      _applyInputsForExercise(_selectedExercise!, keepExistingWeight: false);
+    }
+
+    _restoreRestFromSession(session);
     _didRestoreExerciseFromSession = true;
-    final index = _firstIncompleteExerciseIndex(session);
-    if (index == null || index == _selectedExerciseIndex) {
-      return;
+  }
+
+  int? _indexForExerciseId(String? exerciseId) {
+    if (exerciseId == null || exerciseId.trim().isEmpty) {
+      return null;
     }
 
-    _selectExerciseAt(index, shouldScrollToTop: false);
+    final index = _exercises.indexWhere(
+      (item) => item.exercise.id == exerciseId,
+    );
+    return index < 0 ? null : index;
+  }
+
+  int? _lastLoggedExerciseIndex(SessionState session) {
+    for (final set in session.sets.reversed) {
+      final index = _exercises.indexWhere(
+        (item) =>
+            item.exercise.id == set.exerciseId ||
+            item.exercise.name == set.exerciseName,
+      );
+      if (index >= 0) {
+        return index;
+      }
+    }
+
+    return null;
   }
 
   int? _firstIncompleteExerciseIndex(SessionState session) {
@@ -171,6 +203,40 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
         .length;
   }
 
+  WorkoutSet? _lastSetForExercise(
+    SessionState session,
+    TrainingPlanExercise planExercise,
+  ) {
+    for (final set in session.sets.reversed) {
+      if (set.exerciseId == planExercise.exercise.id ||
+          set.exerciseName == planExercise.exercise.name) {
+        return set;
+      }
+    }
+
+    return null;
+  }
+
+  void _applyInputsForExercise(
+    TrainingPlanExercise planExercise, {
+    required bool keepExistingWeight,
+  }) {
+    _repsController.text = planExercise.targetReps.toString();
+
+    if (keepExistingWeight && _weightController.text.trim().isNotEmpty) {
+      return;
+    }
+
+    final session = context.read<SessionCubit>().state;
+    final lastSet = _lastSetForExercise(session, planExercise);
+    if (lastSet != null) {
+      _weightController.text = _formatWeightInput(lastSet.weightKg);
+      return;
+    }
+
+    _weightController.clear();
+  }
+
   Future<void> _loadExerciseHistory(Exercise? exercise) async {
     if (exercise == null) {
       setState(() {
@@ -188,6 +254,11 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
     setState(() {
       _exerciseHistory = history;
+      if (_selectedExercise?.exercise.id == exercise.id &&
+          _weightController.text.trim().isEmpty &&
+          history.lastWeightKg > 0) {
+        _weightController.text = _formatWeightInput(history.lastWeightKg);
+      }
     });
   }
 
@@ -209,11 +280,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       reps: reps,
     );
     if (didLog) {
+      _weightController.text = _formatWeightInput(weight);
       await _loadExerciseHistory(exercise);
       if (!mounted) {
         return;
       }
-      _startRestTimer();
+      _startRestTimer(selectedExerciseId: exercise.id);
       HapticFeedback.mediumImpact();
       final session = sessionCubit.state;
       final completedTargetSets =
@@ -258,43 +330,95 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       );
   }
 
-  void _startRestTimer() {
+  void _startRestTimer({required String selectedExerciseId}) {
     _restTimer?.cancel();
     unawaited(context.read<RestNotificationService>().cancelRestComplete());
+    final endsAt = DateTime.now().add(Duration(seconds: _restDurationSeconds));
     setState(() {
+      _restEndsAt = endsAt;
       _restSeconds = _restDurationSeconds;
+      _restFlash = false;
     });
+    unawaited(
+      context.read<SessionCubit>().startRest(
+        selectedExerciseId: selectedExerciseId,
+        restEndsAt: endsAt,
+        restDurationSeconds: _restDurationSeconds,
+      ),
+    );
     final labels = context.read<LocaleCubit>().labels;
     unawaited(_scheduleRestNotification(labels));
 
+    _startRestTicker();
+  }
+
+  void _cancelRestTimer() {
+    _restTimer?.cancel();
+    unawaited(context.read<RestNotificationService>().cancelRestComplete());
+    unawaited(context.read<SessionCubit>().clearRest());
+    setState(() {
+      _restEndsAt = null;
+      _restSeconds = 0;
+      _restFlash = false;
+    });
+  }
+
+  void _restoreRestFromSession(SessionState session) {
+    final endsAt = session.restEndsAt;
+    final duration = session.restDurationSeconds;
+    if (endsAt == null || duration == null) {
+      return;
+    }
+
+    final secondsRemaining = endsAt.difference(DateTime.now()).inSeconds;
+    if (secondsRemaining <= 0) {
+      unawaited(context.read<SessionCubit>().clearRest());
+      return;
+    }
+
+    _restTimer?.cancel();
+    setState(() {
+      _restDurationSeconds = duration.clamp(15, 600);
+      _restUnit = _restDurationSeconds >= 60
+          ? _RestUnit.minutes
+          : _RestUnit.seconds;
+      _restEndsAt = endsAt;
+      _restSeconds = secondsRemaining.clamp(1, _restDurationSeconds);
+      _restFlash = false;
+    });
+    _startRestTicker();
+  }
+
+  void _startRestTicker() {
+    _restTimer?.cancel();
     _restTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
 
-      if (_restSeconds <= 1) {
+      final endsAt = _restEndsAt;
+      if (endsAt == null) {
+        timer.cancel();
+        return;
+      }
+
+      final secondsRemaining = endsAt.difference(DateTime.now()).inSeconds;
+      if (secondsRemaining <= 0) {
         timer.cancel();
         setState(() {
+          _restEndsAt = null;
           _restSeconds = 0;
           _restFlash = true;
         });
+        unawaited(context.read<SessionCubit>().clearRest());
         _signalRestComplete();
         return;
       }
 
       setState(() {
-        _restSeconds -= 1;
+        _restSeconds = secondsRemaining.clamp(1, _restDurationSeconds);
       });
-    });
-  }
-
-  void _cancelRestTimer() {
-    _restTimer?.cancel();
-    unawaited(context.read<RestNotificationService>().cancelRestComplete());
-    setState(() {
-      _restSeconds = 0;
-      _restFlash = false;
     });
   }
 
@@ -322,7 +446,11 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     });
   }
 
-  void _selectExerciseAt(int index, {bool shouldScrollToTop = true}) {
+  void _selectExerciseAt(
+    int index, {
+    bool shouldScrollToTop = true,
+    bool persist = true,
+  }) {
     if (index < 0 || index >= _exercises.length) {
       return;
     }
@@ -331,8 +459,13 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     setState(() {
       _selectedExerciseIndex = index;
       _selectedExercise = exercise;
-      _repsController.text = exercise.targetReps.toString();
+      _applyInputsForExercise(exercise, keepExistingWeight: false);
     });
+    if (persist) {
+      unawaited(
+        context.read<SessionCubit>().selectExercise(exercise.exercise.id),
+      );
+    }
     _loadExerciseHistory(exercise.exercise);
     if (shouldScrollToTop && _scrollController.hasClients) {
       _scrollController.animateTo(
@@ -370,7 +503,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     return BlocListener<SessionCubit, SessionState>(
       listenWhen: (previous, current) =>
           previous.sessionId != current.sessionId ||
-          previous.setCount != current.setCount,
+          previous.setCount != current.setCount ||
+          previous.selectedExerciseId != current.selectedExerciseId ||
+          previous.restEndsAt != current.restEndsAt,
       listener: (context, session) => _restoreExerciseFromSession(session),
       child: Scaffold(
         bottomNavigationBar: SafeArea(
@@ -432,19 +567,11 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                           exercises: _exercises,
                           selectedExercise: _selectedExercise,
                           onExerciseChanged: (exercise) {
-                            setState(() {
-                              _selectedExercise = exercise;
-                              _repsController.text = exercise.targetReps
-                                  .toString();
-                              _selectedExerciseIndex = _exercises.indexWhere(
-                                (item) =>
-                                    item.exercise.id == exercise.exercise.id,
-                              );
-                              if (_selectedExerciseIndex < 0) {
-                                _selectedExerciseIndex = 0;
-                              }
-                            });
-                            _loadExerciseHistory(exercise.exercise);
+                            final index = _exercises.indexWhere(
+                              (item) =>
+                                  item.exercise.id == exercise.exercise.id,
+                            );
+                            _selectExerciseAt(index < 0 ? 0 : index);
                           },
                           exerciseHistory: _exerciseHistory,
                           weightController: _weightController,
@@ -964,6 +1091,14 @@ String _formatSessionDuration(Duration duration) {
   return '$minutes:$seconds';
 }
 
+String _formatWeightInput(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toInt().toString();
+  }
+
+  return value.toStringAsFixed(1);
+}
+
 class _LiftInputs extends StatelessWidget {
   const _LiftInputs({
     required this.exercises,
@@ -1016,6 +1151,7 @@ class _LiftInputs extends StatelessWidget {
               children: [
                 Expanded(
                   child: _NumberField(
+                    key: ValueKey('weight-input'),
                     controller: weightController,
                     label: labels.t('kg'),
                   ),
@@ -1023,6 +1159,7 @@ class _LiftInputs extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: _NumberField(
+                    key: ValueKey('reps-input'),
                     controller: repsController,
                     label: labels.t('reps'),
                   ),
@@ -1375,7 +1512,11 @@ class _SmartHistoryPanel extends StatelessWidget {
 }
 
 class _NumberField extends StatelessWidget {
-  const _NumberField({required this.controller, required this.label});
+  const _NumberField({
+    required this.controller,
+    required this.label,
+    super.key,
+  });
 
   final TextEditingController controller;
   final String label;

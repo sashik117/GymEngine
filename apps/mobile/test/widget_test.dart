@@ -107,6 +107,7 @@ void main() {
     expect(find.text('ЗАПИСАТИ ПІДХІД'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('log-set-button')));
+    await tester.enterText(find.byKey(const ValueKey('weight-input')), '20');
     await tester.drag(
       find.byKey(const ValueKey('active-session-scroll')),
       const Offset(0, -260),
@@ -117,18 +118,31 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('ВІДПОЧИНОК'), findsOneWidget);
-    expect(find.text('1:30'), findsWidgets);
+    expect(find.textContaining(RegExp(r'1:2[89]|1:30')), findsWidgets);
 
     await tester.ensureVisible(find.byKey(const ValueKey('set-row-1')));
     await tester.pump();
 
     expect(find.text('1.'), findsOneWidget);
-    expect(find.textContaining('60 КГ x'), findsWidgets);
+    expect(find.textContaining('20 КГ x'), findsWidgets);
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('weight-input')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller
+          ?.text,
+      '20',
+    );
 
     await tester.ensureVisible(find.text('НАСТУПНА ВПРАВА'));
     await tester.tap(find.text('НАСТУПНА ВПРАВА'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const ValueKey('log-set-button')));
+    await tester.enterText(find.byKey(const ValueKey('weight-input')), '40');
     await tester.drag(
       find.byKey(const ValueKey('active-session-scroll')),
       const Offset(0, -260),
@@ -147,7 +161,7 @@ void main() {
 
     expect(find.text('ПІДСУМОК'), findsOneWidget);
     expect(find.text('Тренування закрито'), findsOneWidget);
-    expect(find.text('60 КГ'), findsOneWidget);
+    expect(find.text('40 КГ'), findsOneWidget);
 
     await tester.tap(find.text('НАЗАД ДО ГОЛОВНОЇ'));
     await tester.pumpAndSettle();
@@ -201,7 +215,7 @@ void main() {
     expect(find.text('МАКС. ВАГА'), findsWidgets);
     expect(find.text('МІН. ПОВТ.'), findsWidgets);
     expect(find.text('МАКС. ПОВТ.'), findsWidgets);
-    expect(find.text('60 КГ'), findsWidgets);
+    expect(find.text('40 КГ'), findsWidgets);
 
     await tester.tap(find.text('ПРОФІЛЬ').last);
     await tester.pumpAndSettle();
