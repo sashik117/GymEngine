@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -581,6 +583,7 @@ class WorkoutSessionRepository {
   static String get defaultSyncBaseUrl =>
       kIsWeb ? 'http://127.0.0.1:3017/api' : 'http://192.168.1.104:3017/api';
   static const _syncChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  static const _localAuthPepper = 'gymengine-local-auth-v1';
   static const _manualCatalogAliases = {
     'bench_press': 'Barbell Bench Press',
     'incline_press': 'Barbell Incline Bench Press',
@@ -1641,6 +1644,10 @@ class WorkoutSessionRepository {
       userId: row.userId ?? '',
       email: row.email ?? '',
       authToken: row.authToken ?? '',
+      localPasswordHash: row.localPasswordHash ?? '',
+      localAuthSalt: row.localAuthSalt ?? '',
+      passwordResetCodeHash: row.passwordResetCodeHash ?? '',
+      passwordResetExpiresAt: row.passwordResetExpiresAt,
       syncCode: row.syncCode ?? '',
       syncBaseUrl: row.syncBaseUrl ?? '',
     );
@@ -1665,6 +1672,10 @@ class WorkoutSessionRepository {
             userId: Value(profile.userId.trim()),
             email: Value(profile.email.trim().toLowerCase()),
             authToken: Value(profile.authToken.trim()),
+            localPasswordHash: Value(profile.localPasswordHash.trim()),
+            localAuthSalt: Value(profile.localAuthSalt.trim()),
+            passwordResetCodeHash: Value(profile.passwordResetCodeHash.trim()),
+            passwordResetExpiresAt: Value(profile.passwordResetExpiresAt),
             syncCode: Value(profile.syncCode.trim().toUpperCase()),
             syncBaseUrl: Value(_normalizeBaseUrl(profile.syncBaseUrl)),
             createdAt: existing?.createdAt ?? now,
@@ -1689,46 +1700,84 @@ class WorkoutSessionRepository {
     return 'GE-${block()}-${block()}';
   }
 
+  String _normalizeEmail(String value) {
+    return value.trim().toLowerCase();
+  }
+
+  String _createLocalSecret({int bytes = 24}) {
+    final random = Random.secure();
+    final values = List<int>.generate(bytes, (_) => random.nextInt(256));
+    return base64Url.encode(values);
+  }
+
+  String _createLocalToken() {
+    return 'local_${_uuid.v4()}';
+  }
+
+  String _createLocalResetCode() {
+    final random = Random.secure();
+    return List<int>.generate(6, (_) => random.nextInt(10)).join();
+  }
+
+  String _hashLocalPassword({
+    required String email,
+    required String password,
+    required String salt,
+  }) {
+    final normalizedEmail = _normalizeEmail(email);
+    final payload = '$salt|$normalizedEmail|$password|$_localAuthPepper';
+    return sha256.convert(utf8.encode(payload)).toString();
+  }
+
   Future<AuthRunResult> registerAccount({
     required UserProfile profile,
     required String baseUrl,
     required String email,
     required String password,
   }) async {
-    final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    final session = await SyncApiClient(baseUrl: normalizedBaseUrl)
-        .requestRegistrationCode(
-          email: email,
-          password: password,
-          name: profile.displayName,
-        );
-    if (session.token.trim().isNotEmpty) {
-      return _completeAuth(
-        profile: profile,
-        baseUrl: normalizedBaseUrl,
-        session: session,
-        shouldRestore: false,
-        successMessage: 'Registered and synced',
-      );
+    final normalizedEmail = _normalizeEmail(email);
+    final cleanName = profile.displayName.trim();
+    if (normalizedEmail.isEmpty ||
+        !normalizedEmail.contains('@') ||
+        password.length < 6) {
+      throw SyncException('validation');
     }
-    try {
-      final loginSession = await SyncApiClient(
-        baseUrl: normalizedBaseUrl,
-      ).login(email: email, password: password);
-      if (loginSession.token.trim().isNotEmpty) {
-        return _completeAuth(
-          profile: profile,
-          baseUrl: normalizedBaseUrl,
-          session: loginSession,
-          shouldRestore: false,
-          successMessage: 'Registered and synced',
-        );
-      }
-    } catch (_) {
-      // Some API modes require an email code before login. In that case the UI
-      // should continue to the verification step.
+
+    final currentProfile = await loadProfile();
+    final currentEmail = _normalizeEmail(currentProfile.email);
+    if (currentProfile.hasLocalPassword &&
+        currentEmail.isNotEmpty &&
+        currentEmail != normalizedEmail) {
+      throw SyncException('account_exists');
     }
-    throw SyncException('verification_required', session.devCode);
+
+    final salt = _createLocalSecret();
+    final authenticatedProfile = currentProfile.copyWith(
+      displayName: cleanName.isEmpty ? currentProfile.displayName : cleanName,
+      userId: currentProfile.userId.trim().isEmpty
+          ? _uuid.v4()
+          : currentProfile.userId,
+      email: normalizedEmail,
+      authToken: _createLocalToken(),
+      localPasswordHash: _hashLocalPassword(
+        email: normalizedEmail,
+        password: password,
+        salt: salt,
+      ),
+      localAuthSalt: salt,
+      passwordResetCodeHash: '',
+      clearPasswordResetExpiresAt: true,
+      syncBaseUrl: _normalizeBaseUrl(baseUrl),
+    );
+    await saveProfile(authenticatedProfile, shouldSync: false);
+
+    return AuthRunResult(
+      message: 'Registered locally',
+      profile: authenticatedProfile,
+      setCount: 0,
+      sessionCount: 0,
+      trainingDayCount: 0,
+    );
   }
 
   Future<AuthSession> requestRegistrationCode({
@@ -1767,11 +1816,29 @@ class WorkoutSessionRepository {
     required String baseUrl,
     required String email,
   }) async {
-    final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    final result = await SyncApiClient(
-      baseUrl: normalizedBaseUrl,
-    ).requestPasswordResetCode(email: email);
-    return result.devCode.trim().isEmpty ? null : result.devCode.trim();
+    final normalizedEmail = _normalizeEmail(email);
+    final profile = await loadProfile();
+    if (_normalizeEmail(profile.email) != normalizedEmail ||
+        !profile.hasLocalPassword) {
+      throw SyncException('credentials');
+    }
+
+    final resetCode = _createLocalResetCode();
+    final salt = profile.localAuthSalt.trim().isEmpty
+        ? _createLocalSecret()
+        : profile.localAuthSalt.trim();
+    final updatedProfile = profile.copyWith(
+      localAuthSalt: salt,
+      passwordResetCodeHash: _hashLocalPassword(
+        email: normalizedEmail,
+        password: resetCode,
+        salt: salt,
+      ),
+      passwordResetExpiresAt: DateTime.now().add(const Duration(minutes: 10)),
+      syncBaseUrl: _normalizeBaseUrl(baseUrl),
+    );
+    await saveProfile(updatedProfile, shouldSync: false);
+    return resetCode;
   }
 
   Future<AuthRunResult> confirmPasswordReset({
@@ -1781,17 +1848,51 @@ class WorkoutSessionRepository {
     required String code,
     required String password,
   }) async {
-    final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    final session = await SyncApiClient(
-      baseUrl: normalizedBaseUrl,
-    ).confirmPasswordReset(email: email, code: code, password: password);
+    final normalizedEmail = _normalizeEmail(email);
+    final currentProfile = await loadProfile();
+    final expiresAt = currentProfile.passwordResetExpiresAt;
+    final isExpired = expiresAt == null || DateTime.now().isAfter(expiresAt);
+    final codeHash = _hashLocalPassword(
+      email: normalizedEmail,
+      password: code.trim(),
+      salt: currentProfile.localAuthSalt,
+    );
+    if (_normalizeEmail(currentProfile.email) != normalizedEmail ||
+        currentProfile.passwordResetCodeHash.trim().isEmpty ||
+        currentProfile.passwordResetCodeHash.trim() != codeHash ||
+        isExpired ||
+        password.length < 6) {
+      throw SyncException('credentials');
+    }
 
-    return _completeAuth(
-      profile: profile,
-      baseUrl: normalizedBaseUrl,
-      session: session,
-      shouldRestore: true,
-      successMessage: 'Password reset and restored',
+    final salt = _createLocalSecret();
+    final authenticatedProfile = currentProfile.copyWith(
+      displayName: profile.displayName.trim().isEmpty
+          ? currentProfile.displayName
+          : profile.displayName.trim(),
+      userId: currentProfile.userId.trim().isEmpty
+          ? _uuid.v4()
+          : currentProfile.userId,
+      email: normalizedEmail,
+      authToken: _createLocalToken(),
+      localPasswordHash: _hashLocalPassword(
+        email: normalizedEmail,
+        password: password,
+        salt: salt,
+      ),
+      localAuthSalt: salt,
+      passwordResetCodeHash: '',
+      clearPasswordResetExpiresAt: true,
+      syncBaseUrl: _normalizeBaseUrl(baseUrl),
+    );
+    await saveProfile(authenticatedProfile, shouldSync: false);
+
+    return AuthRunResult(
+      message: 'Password reset locally',
+      profile: authenticatedProfile,
+      setCount: 0,
+      sessionCount: 0,
+      trainingDayCount: 0,
     );
   }
 
@@ -1801,17 +1902,71 @@ class WorkoutSessionRepository {
     required String email,
     required String password,
   }) async {
-    final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    final session = await SyncApiClient(
-      baseUrl: normalizedBaseUrl,
-    ).login(email: email, password: password);
+    final normalizedEmail = _normalizeEmail(email);
+    final currentProfile = await loadProfile();
+    if (_normalizeEmail(currentProfile.email) != normalizedEmail) {
+      throw SyncException('credentials');
+    }
 
-    return _completeAuth(
-      profile: profile,
-      baseUrl: normalizedBaseUrl,
-      session: session,
-      shouldRestore: true,
-      successMessage: 'Logged in and restored',
+    final salt = currentProfile.localAuthSalt.trim();
+    final storedHash = currentProfile.localPasswordHash.trim();
+    if (salt.isEmpty || storedHash.isEmpty) {
+      final migratedSalt = _createLocalSecret();
+      final migratedProfile = currentProfile.copyWith(
+        displayName: profile.displayName.trim().isEmpty
+            ? currentProfile.displayName
+            : profile.displayName.trim(),
+        userId: currentProfile.userId.trim().isEmpty
+            ? _uuid.v4()
+            : currentProfile.userId,
+        email: normalizedEmail,
+        authToken: _createLocalToken(),
+        localPasswordHash: _hashLocalPassword(
+          email: normalizedEmail,
+          password: password,
+          salt: migratedSalt,
+        ),
+        localAuthSalt: migratedSalt,
+        passwordResetCodeHash: '',
+        clearPasswordResetExpiresAt: true,
+        syncBaseUrl: _normalizeBaseUrl(baseUrl),
+      );
+      await saveProfile(migratedProfile, shouldSync: false);
+      return AuthRunResult(
+        message: 'Logged in locally',
+        profile: migratedProfile,
+        setCount: 0,
+        sessionCount: 0,
+        trainingDayCount: 0,
+      );
+    }
+
+    final attemptedHash = _hashLocalPassword(
+      email: normalizedEmail,
+      password: password,
+      salt: salt,
+    );
+    if (attemptedHash != storedHash) {
+      throw SyncException('credentials');
+    }
+
+    final authenticatedProfile = currentProfile.copyWith(
+      displayName: profile.displayName.trim().isEmpty
+          ? currentProfile.displayName
+          : profile.displayName.trim(),
+      authToken: currentProfile.authToken.trim().isEmpty
+          ? _createLocalToken()
+          : currentProfile.authToken,
+      syncBaseUrl: _normalizeBaseUrl(baseUrl),
+    );
+    await saveProfile(authenticatedProfile, shouldSync: false);
+
+    return AuthRunResult(
+      message: 'Logged in locally',
+      profile: authenticatedProfile,
+      setCount: 0,
+      sessionCount: 0,
+      trainingDayCount: 0,
     );
   }
 
@@ -1881,7 +2036,7 @@ class WorkoutSessionRepository {
   }
 
   Future<UserProfile> logoutAccount(UserProfile profile) async {
-    final nextProfile = profile.copyWith(userId: '', email: '', authToken: '');
+    final nextProfile = profile.copyWith(authToken: '');
     await saveProfile(nextProfile, shouldSync: false);
     return nextProfile;
   }
@@ -1891,7 +2046,7 @@ class WorkoutSessionRepository {
     required String baseUrl,
   }) async {
     final normalizedBaseUrl = _normalizeBaseUrl(baseUrl);
-    if (profile.authToken.trim().isEmpty) {
+    if (!profile.canSyncRemotely) {
       throw SyncException('auth');
     }
     final nextProfile = profile.copyWith(syncBaseUrl: normalizedBaseUrl);
@@ -2215,7 +2370,7 @@ class WorkoutSessionRepository {
     }
 
     final profile = await loadProfile();
-    if (!profile.isAuthenticated) {
+    if (!profile.canSyncRemotely) {
       return;
     }
 

@@ -74,6 +74,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       userId: _profile.userId,
       email: _profile.email,
       authToken: _profile.authToken,
+      localPasswordHash: _profile.localPasswordHash,
+      localAuthSalt: _profile.localAuthSalt,
+      passwordResetCodeHash: _profile.passwordResetCodeHash,
+      passwordResetExpiresAt: _profile.passwordResetExpiresAt,
       syncCode: _profile.syncCode,
       syncBaseUrl: _profile.syncBaseUrl.trim().isEmpty
           ? WorkoutSessionRepository.defaultSyncBaseUrl

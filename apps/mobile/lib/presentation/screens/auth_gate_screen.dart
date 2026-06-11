@@ -48,19 +48,21 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
       return;
     }
 
-    unawaited(
-      repository
-          .syncToServer(profile: profile, baseUrl: profile.syncBaseUrl)
-          .catchError(
-            (_) => SyncRunResult(
-              message: 'offline',
-              syncCode: profile.userId,
-              setCount: 0,
-              sessionCount: 0,
-              trainingDayCount: 0,
+    if (profile.canSyncRemotely) {
+      unawaited(
+        repository
+            .syncToServer(profile: profile, baseUrl: profile.syncBaseUrl)
+            .catchError(
+              (_) => SyncRunResult(
+                message: 'offline',
+                syncCode: profile.userId,
+                setCount: 0,
+                sessionCount: 0,
+                trainingDayCount: 0,
+              ),
             ),
-          ),
-    );
+      );
+    }
 
     if (!mounted) {
       return;
@@ -445,7 +447,6 @@ class _AuthScreenState extends State<_AuthScreen> {
 
   String _authErrorMessage(GymLabels labels, Object? error) {
     final isUk = labels.language == GymLanguage.uk;
-    final baseUrl = WorkoutSessionRepository.defaultSyncBaseUrl;
 
     if (error is DioException) {
       final statusCode = error.response?.statusCode;
@@ -466,14 +467,29 @@ class _AuthScreenState extends State<_AuthScreen> {
       }
 
       return isUk
-          ? 'Телефон не бачить сервер: $baseUrl'
-          : 'Phone cannot reach server: $baseUrl';
+          ? 'Мережа недоступна. Локальний вхід працює без сервера.'
+          : 'Network is unavailable. Local login works without the server.';
     }
 
     if (error is SyncException) {
+      if (error.code == 'credentials') {
+        return isUk
+            ? 'Пошта або пароль не підходять.'
+            : 'Email or password is incorrect.';
+      }
+      if (error.code == 'account_exists') {
+        return isUk
+            ? 'На цьому телефоні вже є локальний акаунт з іншою поштою.'
+            : 'This phone already has a local account with another email.';
+      }
+      if (error.code == 'validation') {
+        return isUk
+            ? 'Перевір пошту і пароль. Пароль має бути мінімум 6 символів.'
+            : 'Check email and password. Password must be at least 6 characters.';
+      }
       return isUk
-          ? 'Синхронізація не пройшла: ${error.code}'
-          : 'Sync failed: ${error.code}';
+          ? 'Дія не виконалась: ${error.code}'
+          : 'Action failed: ${error.code}';
     }
 
     return labels.t('authFailed');

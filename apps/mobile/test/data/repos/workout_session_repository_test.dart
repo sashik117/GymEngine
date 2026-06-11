@@ -12,6 +12,94 @@ void main() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   });
 
+  test('auth works locally without requiring the sync server', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final repository = WorkoutSessionRepository(database);
+    await repository.registerAccount(
+      profile: UserProfile.empty().copyWith(displayName: 'Sanyo'),
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'sanyoklolik@gmail.com',
+      password: 'Gym123',
+    );
+
+    final registeredProfile = await repository.loadProfile();
+    expect(registeredProfile.isAuthenticated, isTrue);
+    expect(registeredProfile.canSyncRemotely, isFalse);
+    expect(registeredProfile.email, 'sanyoklolik@gmail.com');
+    expect(registeredProfile.localPasswordHash, isNotEmpty);
+    expect(registeredProfile.localPasswordHash, isNot('Gym123'));
+
+    await repository.logoutAccount(registeredProfile);
+    final loggedOutProfile = await repository.loadProfile();
+    expect(loggedOutProfile.isAuthenticated, isFalse);
+    expect(loggedOutProfile.email, 'sanyoklolik@gmail.com');
+    expect(
+      loggedOutProfile.localPasswordHash,
+      registeredProfile.localPasswordHash,
+    );
+
+    await repository.loginAccount(
+      profile: UserProfile.empty(),
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'sanyoklolik@gmail.com',
+      password: 'Gym123',
+    );
+    expect((await repository.loadProfile()).isAuthenticated, isTrue);
+
+    final resetCode = await repository.requestPasswordResetCode(
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'sanyoklolik@gmail.com',
+    );
+    expect(resetCode, hasLength(6));
+
+    await repository.confirmPasswordReset(
+      profile: UserProfile.empty(),
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'sanyoklolik@gmail.com',
+      code: resetCode!,
+      password: 'Gym124',
+    );
+
+    await repository.loginAccount(
+      profile: UserProfile.empty(),
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'sanyoklolik@gmail.com',
+      password: 'Gym124',
+    );
+    expect((await repository.loadProfile()).isAuthenticated, isTrue);
+  });
+
+  test('login migrates an old local profile without password hash', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final repository = WorkoutSessionRepository(database);
+    await repository.saveProfile(
+      UserProfile.empty().copyWith(
+        displayName: 'Old account',
+        userId: 'legacy-user',
+        email: 'legacy@example.com',
+        authToken: '',
+      ),
+      shouldSync: false,
+    );
+
+    await repository.loginAccount(
+      profile: UserProfile.empty(),
+      baseUrl: WorkoutSessionRepository.defaultSyncBaseUrl,
+      email: 'legacy@example.com',
+      password: 'Gym123',
+    );
+
+    final profile = await repository.loadProfile();
+    expect(profile.isAuthenticated, isTrue);
+    expect(profile.userId, 'legacy-user');
+    expect(profile.localPasswordHash, isNotEmpty);
+    expect(profile.canSyncRemotely, isFalse);
+  });
+
   test('persists a workout session with sets', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
@@ -215,6 +303,10 @@ void main() {
         userId: '',
         email: '',
         authToken: '',
+        localPasswordHash: '',
+        localAuthSalt: '',
+        passwordResetCodeHash: '',
+        passwordResetExpiresAt: null,
         syncCode: '',
         syncBaseUrl: '',
       ),

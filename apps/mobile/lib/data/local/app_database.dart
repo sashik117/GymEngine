@@ -87,6 +87,10 @@ class UserProfiles extends Table {
   TextColumn get userId => text().nullable()();
   TextColumn get email => text().nullable()();
   TextColumn get authToken => text().nullable()();
+  TextColumn get localPasswordHash => text().nullable()();
+  TextColumn get localAuthSalt => text().nullable()();
+  TextColumn get passwordResetCodeHash => text().nullable()();
+  DateTimeColumn get passwordResetExpiresAt => dateTime().nullable()();
   TextColumn get syncCode => text().nullable()();
   TextColumn get syncBaseUrl => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -125,7 +129,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -220,6 +224,21 @@ class AppDatabase extends _$AppDatabase {
           await migrator.addColumn(
             workoutSessions,
             workoutSessions.restDurationSeconds,
+          );
+        }
+        if (from < 15) {
+          await migrator.addColumn(
+            userProfiles,
+            userProfiles.localPasswordHash,
+          );
+          await migrator.addColumn(userProfiles, userProfiles.localAuthSalt);
+          await migrator.addColumn(
+            userProfiles,
+            userProfiles.passwordResetCodeHash,
+          );
+          await migrator.addColumn(
+            userProfiles,
+            userProfiles.passwordResetExpiresAt,
           );
         }
       },

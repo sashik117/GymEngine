@@ -2886,6 +2886,51 @@ class $UserProfilesTable extends UserProfiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _localPasswordHashMeta = const VerificationMeta(
+    'localPasswordHash',
+  );
+  @override
+  late final GeneratedColumn<String> localPasswordHash =
+      GeneratedColumn<String>(
+        'local_password_hash',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _localAuthSaltMeta = const VerificationMeta(
+    'localAuthSalt',
+  );
+  @override
+  late final GeneratedColumn<String> localAuthSalt = GeneratedColumn<String>(
+    'local_auth_salt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _passwordResetCodeHashMeta =
+      const VerificationMeta('passwordResetCodeHash');
+  @override
+  late final GeneratedColumn<String> passwordResetCodeHash =
+      GeneratedColumn<String>(
+        'password_reset_code_hash',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _passwordResetExpiresAtMeta =
+      const VerificationMeta('passwordResetExpiresAt');
+  @override
+  late final GeneratedColumn<DateTime> passwordResetExpiresAt =
+      GeneratedColumn<DateTime>(
+        'password_reset_expires_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _syncCodeMeta = const VerificationMeta(
     'syncCode',
   );
@@ -2938,6 +2983,10 @@ class $UserProfilesTable extends UserProfiles
     userId,
     email,
     authToken,
+    localPasswordHash,
+    localAuthSalt,
+    passwordResetCodeHash,
+    passwordResetExpiresAt,
     syncCode,
     syncBaseUrl,
     createdAt,
@@ -2994,6 +3043,42 @@ class $UserProfilesTable extends UserProfiles
       context.handle(
         _authTokenMeta,
         authToken.isAcceptableOrUnknown(data['auth_token']!, _authTokenMeta),
+      );
+    }
+    if (data.containsKey('local_password_hash')) {
+      context.handle(
+        _localPasswordHashMeta,
+        localPasswordHash.isAcceptableOrUnknown(
+          data['local_password_hash']!,
+          _localPasswordHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_auth_salt')) {
+      context.handle(
+        _localAuthSaltMeta,
+        localAuthSalt.isAcceptableOrUnknown(
+          data['local_auth_salt']!,
+          _localAuthSaltMeta,
+        ),
+      );
+    }
+    if (data.containsKey('password_reset_code_hash')) {
+      context.handle(
+        _passwordResetCodeHashMeta,
+        passwordResetCodeHash.isAcceptableOrUnknown(
+          data['password_reset_code_hash']!,
+          _passwordResetCodeHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('password_reset_expires_at')) {
+      context.handle(
+        _passwordResetExpiresAtMeta,
+        passwordResetExpiresAt.isAcceptableOrUnknown(
+          data['password_reset_expires_at']!,
+          _passwordResetExpiresAtMeta,
+        ),
       );
     }
     if (data.containsKey('sync_code')) {
@@ -3060,6 +3145,22 @@ class $UserProfilesTable extends UserProfiles
         DriftSqlType.string,
         data['${effectivePrefix}auth_token'],
       ),
+      localPasswordHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_password_hash'],
+      ),
+      localAuthSalt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_auth_salt'],
+      ),
+      passwordResetCodeHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password_reset_code_hash'],
+      ),
+      passwordResetExpiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}password_reset_expires_at'],
+      ),
       syncCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sync_code'],
@@ -3092,6 +3193,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   final String? userId;
   final String? email;
   final String? authToken;
+  final String? localPasswordHash;
+  final String? localAuthSalt;
+  final String? passwordResetCodeHash;
+  final DateTime? passwordResetExpiresAt;
   final String? syncCode;
   final String? syncBaseUrl;
   final DateTime createdAt;
@@ -3103,6 +3208,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     this.userId,
     this.email,
     this.authToken,
+    this.localPasswordHash,
+    this.localAuthSalt,
+    this.passwordResetCodeHash,
+    this.passwordResetExpiresAt,
     this.syncCode,
     this.syncBaseUrl,
     required this.createdAt,
@@ -3124,6 +3233,20 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     }
     if (!nullToAbsent || authToken != null) {
       map['auth_token'] = Variable<String>(authToken);
+    }
+    if (!nullToAbsent || localPasswordHash != null) {
+      map['local_password_hash'] = Variable<String>(localPasswordHash);
+    }
+    if (!nullToAbsent || localAuthSalt != null) {
+      map['local_auth_salt'] = Variable<String>(localAuthSalt);
+    }
+    if (!nullToAbsent || passwordResetCodeHash != null) {
+      map['password_reset_code_hash'] = Variable<String>(passwordResetCodeHash);
+    }
+    if (!nullToAbsent || passwordResetExpiresAt != null) {
+      map['password_reset_expires_at'] = Variable<DateTime>(
+        passwordResetExpiresAt,
+      );
     }
     if (!nullToAbsent || syncCode != null) {
       map['sync_code'] = Variable<String>(syncCode);
@@ -3152,6 +3275,18 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       authToken: authToken == null && nullToAbsent
           ? const Value.absent()
           : Value(authToken),
+      localPasswordHash: localPasswordHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localPasswordHash),
+      localAuthSalt: localAuthSalt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localAuthSalt),
+      passwordResetCodeHash: passwordResetCodeHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passwordResetCodeHash),
+      passwordResetExpiresAt: passwordResetExpiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(passwordResetExpiresAt),
       syncCode: syncCode == null && nullToAbsent
           ? const Value.absent()
           : Value(syncCode),
@@ -3175,6 +3310,16 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       userId: serializer.fromJson<String?>(json['userId']),
       email: serializer.fromJson<String?>(json['email']),
       authToken: serializer.fromJson<String?>(json['authToken']),
+      localPasswordHash: serializer.fromJson<String?>(
+        json['localPasswordHash'],
+      ),
+      localAuthSalt: serializer.fromJson<String?>(json['localAuthSalt']),
+      passwordResetCodeHash: serializer.fromJson<String?>(
+        json['passwordResetCodeHash'],
+      ),
+      passwordResetExpiresAt: serializer.fromJson<DateTime?>(
+        json['passwordResetExpiresAt'],
+      ),
       syncCode: serializer.fromJson<String?>(json['syncCode']),
       syncBaseUrl: serializer.fromJson<String?>(json['syncBaseUrl']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -3191,6 +3336,14 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       'userId': serializer.toJson<String?>(userId),
       'email': serializer.toJson<String?>(email),
       'authToken': serializer.toJson<String?>(authToken),
+      'localPasswordHash': serializer.toJson<String?>(localPasswordHash),
+      'localAuthSalt': serializer.toJson<String?>(localAuthSalt),
+      'passwordResetCodeHash': serializer.toJson<String?>(
+        passwordResetCodeHash,
+      ),
+      'passwordResetExpiresAt': serializer.toJson<DateTime?>(
+        passwordResetExpiresAt,
+      ),
       'syncCode': serializer.toJson<String?>(syncCode),
       'syncBaseUrl': serializer.toJson<String?>(syncBaseUrl),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -3205,6 +3358,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     Value<String?> userId = const Value.absent(),
     Value<String?> email = const Value.absent(),
     Value<String?> authToken = const Value.absent(),
+    Value<String?> localPasswordHash = const Value.absent(),
+    Value<String?> localAuthSalt = const Value.absent(),
+    Value<String?> passwordResetCodeHash = const Value.absent(),
+    Value<DateTime?> passwordResetExpiresAt = const Value.absent(),
     Value<String?> syncCode = const Value.absent(),
     Value<String?> syncBaseUrl = const Value.absent(),
     DateTime? createdAt,
@@ -3216,6 +3373,18 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     userId: userId.present ? userId.value : this.userId,
     email: email.present ? email.value : this.email,
     authToken: authToken.present ? authToken.value : this.authToken,
+    localPasswordHash: localPasswordHash.present
+        ? localPasswordHash.value
+        : this.localPasswordHash,
+    localAuthSalt: localAuthSalt.present
+        ? localAuthSalt.value
+        : this.localAuthSalt,
+    passwordResetCodeHash: passwordResetCodeHash.present
+        ? passwordResetCodeHash.value
+        : this.passwordResetCodeHash,
+    passwordResetExpiresAt: passwordResetExpiresAt.present
+        ? passwordResetExpiresAt.value
+        : this.passwordResetExpiresAt,
     syncCode: syncCode.present ? syncCode.value : this.syncCode,
     syncBaseUrl: syncBaseUrl.present ? syncBaseUrl.value : this.syncBaseUrl,
     createdAt: createdAt ?? this.createdAt,
@@ -3233,6 +3402,18 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       userId: data.userId.present ? data.userId.value : this.userId,
       email: data.email.present ? data.email.value : this.email,
       authToken: data.authToken.present ? data.authToken.value : this.authToken,
+      localPasswordHash: data.localPasswordHash.present
+          ? data.localPasswordHash.value
+          : this.localPasswordHash,
+      localAuthSalt: data.localAuthSalt.present
+          ? data.localAuthSalt.value
+          : this.localAuthSalt,
+      passwordResetCodeHash: data.passwordResetCodeHash.present
+          ? data.passwordResetCodeHash.value
+          : this.passwordResetCodeHash,
+      passwordResetExpiresAt: data.passwordResetExpiresAt.present
+          ? data.passwordResetExpiresAt.value
+          : this.passwordResetExpiresAt,
       syncCode: data.syncCode.present ? data.syncCode.value : this.syncCode,
       syncBaseUrl: data.syncBaseUrl.present
           ? data.syncBaseUrl.value
@@ -3251,6 +3432,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           ..write('userId: $userId, ')
           ..write('email: $email, ')
           ..write('authToken: $authToken, ')
+          ..write('localPasswordHash: $localPasswordHash, ')
+          ..write('localAuthSalt: $localAuthSalt, ')
+          ..write('passwordResetCodeHash: $passwordResetCodeHash, ')
+          ..write('passwordResetExpiresAt: $passwordResetExpiresAt, ')
           ..write('syncCode: $syncCode, ')
           ..write('syncBaseUrl: $syncBaseUrl, ')
           ..write('createdAt: $createdAt, ')
@@ -3267,6 +3452,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     userId,
     email,
     authToken,
+    localPasswordHash,
+    localAuthSalt,
+    passwordResetCodeHash,
+    passwordResetExpiresAt,
     syncCode,
     syncBaseUrl,
     createdAt,
@@ -3282,6 +3471,10 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           other.userId == this.userId &&
           other.email == this.email &&
           other.authToken == this.authToken &&
+          other.localPasswordHash == this.localPasswordHash &&
+          other.localAuthSalt == this.localAuthSalt &&
+          other.passwordResetCodeHash == this.passwordResetCodeHash &&
+          other.passwordResetExpiresAt == this.passwordResetExpiresAt &&
           other.syncCode == this.syncCode &&
           other.syncBaseUrl == this.syncBaseUrl &&
           other.createdAt == this.createdAt &&
@@ -3295,6 +3488,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<String?> userId;
   final Value<String?> email;
   final Value<String?> authToken;
+  final Value<String?> localPasswordHash;
+  final Value<String?> localAuthSalt;
+  final Value<String?> passwordResetCodeHash;
+  final Value<DateTime?> passwordResetExpiresAt;
   final Value<String?> syncCode;
   final Value<String?> syncBaseUrl;
   final Value<DateTime> createdAt;
@@ -3307,6 +3504,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.userId = const Value.absent(),
     this.email = const Value.absent(),
     this.authToken = const Value.absent(),
+    this.localPasswordHash = const Value.absent(),
+    this.localAuthSalt = const Value.absent(),
+    this.passwordResetCodeHash = const Value.absent(),
+    this.passwordResetExpiresAt = const Value.absent(),
     this.syncCode = const Value.absent(),
     this.syncBaseUrl = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -3320,6 +3521,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.userId = const Value.absent(),
     this.email = const Value.absent(),
     this.authToken = const Value.absent(),
+    this.localPasswordHash = const Value.absent(),
+    this.localAuthSalt = const Value.absent(),
+    this.passwordResetCodeHash = const Value.absent(),
+    this.passwordResetExpiresAt = const Value.absent(),
     this.syncCode = const Value.absent(),
     this.syncBaseUrl = const Value.absent(),
     required DateTime createdAt,
@@ -3335,6 +3540,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Expression<String>? userId,
     Expression<String>? email,
     Expression<String>? authToken,
+    Expression<String>? localPasswordHash,
+    Expression<String>? localAuthSalt,
+    Expression<String>? passwordResetCodeHash,
+    Expression<DateTime>? passwordResetExpiresAt,
     Expression<String>? syncCode,
     Expression<String>? syncBaseUrl,
     Expression<DateTime>? createdAt,
@@ -3348,6 +3557,12 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       if (userId != null) 'user_id': userId,
       if (email != null) 'email': email,
       if (authToken != null) 'auth_token': authToken,
+      if (localPasswordHash != null) 'local_password_hash': localPasswordHash,
+      if (localAuthSalt != null) 'local_auth_salt': localAuthSalt,
+      if (passwordResetCodeHash != null)
+        'password_reset_code_hash': passwordResetCodeHash,
+      if (passwordResetExpiresAt != null)
+        'password_reset_expires_at': passwordResetExpiresAt,
       if (syncCode != null) 'sync_code': syncCode,
       if (syncBaseUrl != null) 'sync_base_url': syncBaseUrl,
       if (createdAt != null) 'created_at': createdAt,
@@ -3363,6 +3578,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Value<String?>? userId,
     Value<String?>? email,
     Value<String?>? authToken,
+    Value<String?>? localPasswordHash,
+    Value<String?>? localAuthSalt,
+    Value<String?>? passwordResetCodeHash,
+    Value<DateTime?>? passwordResetExpiresAt,
     Value<String?>? syncCode,
     Value<String?>? syncBaseUrl,
     Value<DateTime>? createdAt,
@@ -3376,6 +3595,12 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       userId: userId ?? this.userId,
       email: email ?? this.email,
       authToken: authToken ?? this.authToken,
+      localPasswordHash: localPasswordHash ?? this.localPasswordHash,
+      localAuthSalt: localAuthSalt ?? this.localAuthSalt,
+      passwordResetCodeHash:
+          passwordResetCodeHash ?? this.passwordResetCodeHash,
+      passwordResetExpiresAt:
+          passwordResetExpiresAt ?? this.passwordResetExpiresAt,
       syncCode: syncCode ?? this.syncCode,
       syncBaseUrl: syncBaseUrl ?? this.syncBaseUrl,
       createdAt: createdAt ?? this.createdAt,
@@ -3405,6 +3630,22 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     if (authToken.present) {
       map['auth_token'] = Variable<String>(authToken.value);
     }
+    if (localPasswordHash.present) {
+      map['local_password_hash'] = Variable<String>(localPasswordHash.value);
+    }
+    if (localAuthSalt.present) {
+      map['local_auth_salt'] = Variable<String>(localAuthSalt.value);
+    }
+    if (passwordResetCodeHash.present) {
+      map['password_reset_code_hash'] = Variable<String>(
+        passwordResetCodeHash.value,
+      );
+    }
+    if (passwordResetExpiresAt.present) {
+      map['password_reset_expires_at'] = Variable<DateTime>(
+        passwordResetExpiresAt.value,
+      );
+    }
     if (syncCode.present) {
       map['sync_code'] = Variable<String>(syncCode.value);
     }
@@ -3432,6 +3673,10 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
           ..write('userId: $userId, ')
           ..write('email: $email, ')
           ..write('authToken: $authToken, ')
+          ..write('localPasswordHash: $localPasswordHash, ')
+          ..write('localAuthSalt: $localAuthSalt, ')
+          ..write('passwordResetCodeHash: $passwordResetCodeHash, ')
+          ..write('passwordResetExpiresAt: $passwordResetExpiresAt, ')
           ..write('syncCode: $syncCode, ')
           ..write('syncBaseUrl: $syncBaseUrl, ')
           ..write('createdAt: $createdAt, ')
@@ -6222,6 +6467,10 @@ typedef $$UserProfilesTableCreateCompanionBuilder =
       Value<String?> userId,
       Value<String?> email,
       Value<String?> authToken,
+      Value<String?> localPasswordHash,
+      Value<String?> localAuthSalt,
+      Value<String?> passwordResetCodeHash,
+      Value<DateTime?> passwordResetExpiresAt,
       Value<String?> syncCode,
       Value<String?> syncBaseUrl,
       required DateTime createdAt,
@@ -6236,6 +6485,10 @@ typedef $$UserProfilesTableUpdateCompanionBuilder =
       Value<String?> userId,
       Value<String?> email,
       Value<String?> authToken,
+      Value<String?> localPasswordHash,
+      Value<String?> localAuthSalt,
+      Value<String?> passwordResetCodeHash,
+      Value<DateTime?> passwordResetExpiresAt,
       Value<String?> syncCode,
       Value<String?> syncBaseUrl,
       Value<DateTime> createdAt,
@@ -6279,6 +6532,26 @@ class $$UserProfilesTableFilterComposer
 
   ColumnFilters<String> get authToken => $composableBuilder(
     column: $table.authToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPasswordHash => $composableBuilder(
+    column: $table.localPasswordHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localAuthSalt => $composableBuilder(
+    column: $table.localAuthSalt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get passwordResetCodeHash => $composableBuilder(
+    column: $table.passwordResetCodeHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get passwordResetExpiresAt => $composableBuilder(
+    column: $table.passwordResetExpiresAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6342,6 +6615,26 @@ class $$UserProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get localPasswordHash => $composableBuilder(
+    column: $table.localPasswordHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localAuthSalt => $composableBuilder(
+    column: $table.localAuthSalt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get passwordResetCodeHash => $composableBuilder(
+    column: $table.passwordResetCodeHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get passwordResetExpiresAt => $composableBuilder(
+    column: $table.passwordResetExpiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get syncCode => $composableBuilder(
     column: $table.syncCode,
     builder: (column) => ColumnOrderings(column),
@@ -6393,6 +6686,26 @@ class $$UserProfilesTableAnnotationComposer
 
   GeneratedColumn<String> get authToken =>
       $composableBuilder(column: $table.authToken, builder: (column) => column);
+
+  GeneratedColumn<String> get localPasswordHash => $composableBuilder(
+    column: $table.localPasswordHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localAuthSalt => $composableBuilder(
+    column: $table.localAuthSalt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get passwordResetCodeHash => $composableBuilder(
+    column: $table.passwordResetCodeHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get passwordResetExpiresAt => $composableBuilder(
+    column: $table.passwordResetExpiresAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get syncCode =>
       $composableBuilder(column: $table.syncCode, builder: (column) => column);
@@ -6446,6 +6759,10 @@ class $$UserProfilesTableTableManager
                 Value<String?> userId = const Value.absent(),
                 Value<String?> email = const Value.absent(),
                 Value<String?> authToken = const Value.absent(),
+                Value<String?> localPasswordHash = const Value.absent(),
+                Value<String?> localAuthSalt = const Value.absent(),
+                Value<String?> passwordResetCodeHash = const Value.absent(),
+                Value<DateTime?> passwordResetExpiresAt = const Value.absent(),
                 Value<String?> syncCode = const Value.absent(),
                 Value<String?> syncBaseUrl = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -6458,6 +6775,10 @@ class $$UserProfilesTableTableManager
                 userId: userId,
                 email: email,
                 authToken: authToken,
+                localPasswordHash: localPasswordHash,
+                localAuthSalt: localAuthSalt,
+                passwordResetCodeHash: passwordResetCodeHash,
+                passwordResetExpiresAt: passwordResetExpiresAt,
                 syncCode: syncCode,
                 syncBaseUrl: syncBaseUrl,
                 createdAt: createdAt,
@@ -6472,6 +6793,10 @@ class $$UserProfilesTableTableManager
                 Value<String?> userId = const Value.absent(),
                 Value<String?> email = const Value.absent(),
                 Value<String?> authToken = const Value.absent(),
+                Value<String?> localPasswordHash = const Value.absent(),
+                Value<String?> localAuthSalt = const Value.absent(),
+                Value<String?> passwordResetCodeHash = const Value.absent(),
+                Value<DateTime?> passwordResetExpiresAt = const Value.absent(),
                 Value<String?> syncCode = const Value.absent(),
                 Value<String?> syncBaseUrl = const Value.absent(),
                 required DateTime createdAt,
@@ -6484,6 +6809,10 @@ class $$UserProfilesTableTableManager
                 userId: userId,
                 email: email,
                 authToken: authToken,
+                localPasswordHash: localPasswordHash,
+                localAuthSalt: localAuthSalt,
+                passwordResetCodeHash: passwordResetCodeHash,
+                passwordResetExpiresAt: passwordResetExpiresAt,
                 syncCode: syncCode,
                 syncBaseUrl: syncBaseUrl,
                 createdAt: createdAt,
